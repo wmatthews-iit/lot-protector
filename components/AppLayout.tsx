@@ -1,6 +1,7 @@
 'use client';
 
-import { Anchor, AppShell, Burger, Button, Group, NavLink, rem, Stack, Tabs } from '@mantine/core';
+import { theme } from '@/theme';
+import { Anchor, AppShell, Burger, Button, Group, MantineProvider, NavLink, rem, Stack, Tabs } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -21,7 +22,11 @@ export default function AppLayout({ children }: { children: any }) {
     },
     {
       href: '/manage',
-      label: 'Manage Lots',
+      label: 'Manage Lot',
+    },
+    {
+      href: '/people',
+      label: 'Manage People',
     },
     {
       href: '/account',
@@ -29,94 +34,112 @@ export default function AppLayout({ children }: { children: any }) {
     },
   ];
   
-  return <AppShell
-    header={{ height: 60 }}
-    navbar={{ width: 300, breakpoint: 'sm', collapsed: { desktop: true, mobile: !opened } }}
-    padding="md"
+  return <MantineProvider
+    cssVariablesResolver={(theme) => ({
+      variables: {
+        '--app-shell-header-z-index': '1100',
+        '--mantine-z-index-app': '1100',
+        '--mantine-z-index-modal': '1200',
+        '--mantine-z-index-popover': '1300',
+        '--mantine-z-index-overlay': '1400',
+        '--overlay-z-index': '1400',
+      },
+      light: {},
+      dark: {},
+    })}
+    defaultColorScheme="dark"
+    theme={theme}
   >
-    <AppShell.Header>
-      <Group
-        h="100%"
-        justify="space-between"
-        px="sm"
-      >
-        <Group gap={0}>
-          <Burger
-            hiddenFrom="sm"
-            onClick={toggle}
-            opened={opened}
-            size="md"
-          />
-          <Anchor
-            c="white"
-            component={Link}
-            href="/"
-            ml={rem(8)}
-            onClick={close}
-          >
-            Lot Protector
-          </Anchor>
-        </Group>
-        
+    <AppShell
+      header={{ height: 60 }}
+      navbar={{ width: 300, breakpoint: 'sm', collapsed: { desktop: true, mobile: !opened } }}
+      padding="md"
+      zIndex={1100}
+    >
+      <AppShell.Header>
         <Group
-          align="end"
-          gap={0}
           h="100%"
-          visibleFrom="sm"
+          justify="space-between"
+          px="sm"
         >
-          <Tabs
-            onChange={(value) => router.push(`/${value}`)}
-            value={pathname.slice(1)}
+          <Group gap={0}>
+            <Burger
+              hiddenFrom="sm"
+              onClick={toggle}
+              opened={opened}
+              size="md"
+            />
+            <Anchor
+              c="white"
+              component={Link}
+              href="/"
+              ml={rem(8)}
+              onClick={close}
+            >
+              Lot Protector
+            </Anchor>
+          </Group>
+          
+          <Group
+            align="end"
+            gap={0}
+            h="100%"
+            visibleFrom="sm"
           >
-            <Tabs.List>
-              {links.map((link) => <Tabs.Tab
-                key={link.href}
-                onClick={close}
-                value={link.href.slice(1)}
-              >{link.label}</Tabs.Tab>)}
-            </Tabs.List>
-          </Tabs>
+            <Tabs
+              onChange={(value) => router.push(`/${value}`)}
+              value={pathname.slice(1)}
+            >
+              <Tabs.List>
+                {links.map((link) => <Tabs.Tab
+                  key={link.href}
+                  onClick={close}
+                  value={link.href.slice(1)}
+                >{link.label}</Tabs.Tab>)}
+              </Tabs.List>
+            </Tabs>
+          </Group>
+          
+          <Group gap="sm">
+            {/* <Button
+              component={Link}
+              href="/signin"
+              onClick={close}
+              variant="outline"
+            >
+              Sign In
+            </Button>
+            <Button
+              component={Link}
+              href="/signup"
+              onClick={close}
+            >
+              Sign Up
+            </Button> */}
+            <Button
+              onClick={close}
+              variant="outline"
+            >
+              Sign Out
+            </Button>
+          </Group>
         </Group>
-        
-        <Group gap="sm">
-          <Button
-            component={Link}
-            href="/signin"
-            onClick={close}
-            variant="outline"
-          >
-            Sign In
-          </Button>
-          <Button
-            component={Link}
-            href="/signup"
-            onClick={close}
-          >
-            Sign Up
-          </Button>
-          {/* <Button
-            onClick={close}
-            variant="outline"
-          >
-            Sign Out
-          </Button> */}
-        </Group>
-      </Group>
-    </AppShell.Header>
+      </AppShell.Header>
 
-    <AppShell.Navbar>
-      <Stack gap={0}>
-        {links.map((link) => <NavLink
-          active={pathname.startsWith(link.href)}
-          component={Link}
-          href={link.href}
-          key={link.href}
-          label={link.label}
-          onClick={close}
-        />)}
-      </Stack>
-    </AppShell.Navbar>
+      <AppShell.Navbar>
+        <Stack gap={0}>
+          {links.map((link) => <NavLink
+            active={pathname.startsWith(link.href)}
+            component={Link}
+            href={link.href}
+            key={link.href}
+            label={link.label}
+            onClick={close}
+          />)}
+        </Stack>
+      </AppShell.Navbar>
 
-    <AppShell.Main>{children}</AppShell.Main>
-  </AppShell>;
+      <AppShell.Main>{children}</AppShell.Main>
+    </AppShell>
+  </MantineProvider>;
 }

@@ -17,18 +17,24 @@
   },
   "dependencies": {
     "@mantine/core": "7.16.2",
+    "@mantine/dates": "7.16.2",
     "@mantine/hooks": "7.16.2",
     "@next/bundle-analyzer": "^15.1.5",
     "@tabler/icons-react": "^3.28.1",
+    "dayjs": "^1.11.13",
+    "leaflet": "^1.9.4",
+    "leaflet-defaulticon-compatibility": "^0.1.2",
     "next": "15.1.5",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "react-leaflet": "^4.2.1"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@eslint/js": "^9.18.0",
     "@ianvs/prettier-plugin-sort-imports": "^4.4.1",
     "@types/eslint-plugin-jsx-a11y": "^6",
+    "@types/leaflet": "^1.9.16",
     "@types/node": "^22.10.7",
     "@types/react": "18.3.12",
     "babel-loader": "^9.2.1",
