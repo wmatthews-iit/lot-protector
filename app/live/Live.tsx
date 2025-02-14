@@ -95,8 +95,8 @@ export default function Live() {
           <Title order={2}>Settings</Title>
           <Checkbox
             defaultChecked
-            description="If unchecked, only sensors that are currently detecting violations will be shown"
-            label="Show All Working Sensors"
+            description="If unchecked, only sensors that are currently detecting violations will be shown. If checked, sensors with no cars or valid cars will be shown"
+            label="Show Valid Sensors"
             mt="md"
           />
           <Checkbox
