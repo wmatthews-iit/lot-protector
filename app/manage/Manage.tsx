@@ -8,6 +8,7 @@ import {
   Grid,
   Group,
   Modal,
+  NumberInput,
   Paper,
   rem,
   Stack,
@@ -77,6 +78,8 @@ export default function Manage() {
     toggleManage();
   };
   
+  // Add settings for how long until a violation is recorded
+  
   return <>
     <Grid>
       <Grid.Col
@@ -99,6 +102,21 @@ export default function Manage() {
               variant="outline"
             >Delete</Button>
           </Group>
+        </Paper>
+        
+        <Paper
+          mt="md"
+          p="md"
+          withBorder
+        >
+          <Title order={2}>Settings</Title>
+          <NumberInput
+            defaultValue={5}
+            description="How many minutes should an alert be sent after a violation is detected?"
+            label="Time to Alert"
+            min={1}
+            mt="md"
+          />
         </Paper>
         
         <Paper

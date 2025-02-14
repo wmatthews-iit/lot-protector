@@ -5,6 +5,7 @@ import {
   Card,
   Checkbox,
   Grid,
+  Image,
   Modal,
   Paper,
   rem,
@@ -165,6 +166,10 @@ export default function Live() {
       <Title order={4}>{selectedZone?.name} - Spot {selectedAlert?.spot}</Title>
       <Text mb="md">{selectedZone?.address}</Text>
       <Text>Violation occurred at {selectedAlert ? formatTime(selectedAlert.time) : ''} by someone with the license plate: <strong>{selectedAlert?.licensePlate}</strong></Text>
+      <Image
+        mt="md"
+        src="https://raw.githubusercontent.com/mantinedev/mantine/master/.demo/images/bg-10.png"
+      />
     </Modal>
   </>;
 }
