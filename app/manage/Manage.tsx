@@ -117,6 +117,10 @@ export default function Manage() {
             min={1}
             mt="md"
           />
+          <Group mt="md">
+            <Button>Update</Button>
+            <Button variant="outline">Cancel</Button>
+          </Group>
         </Paper>
         
         <Paper
