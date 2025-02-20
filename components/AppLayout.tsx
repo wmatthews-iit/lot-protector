@@ -1,12 +1,16 @@
 'use client';
 
+import { auth } from '@/lib/firebase/app';
+import { useUser } from '@/lib/firebase/useUser';
 import { theme } from '@/theme';
 import { Anchor, AppShell, Burger, Button, Group, MantineProvider, NavLink, rem, Stack, Tabs } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import { signOut } from 'firebase/auth';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
 export default function AppLayout({ children }: { children: any }) {
+  const user = useUser();
   const router = useRouter();
   const pathname = usePathname();
   const [opened, { close, toggle }] = useDisclosure();
@@ -33,6 +37,15 @@ export default function AppLayout({ children }: { children: any }) {
       label: 'Account',
     },
   ];
+  
+  const signOutRedirect = async () => {
+    try {
+      await signOut(auth);
+      if (pathname.length > 1) router.push('/signin');
+    } catch (error) {
+      console.log(error);
+    }
+  };
   
   return <MantineProvider
     cssVariablesResolver={(theme) => ({
@@ -100,9 +113,13 @@ export default function AppLayout({ children }: { children: any }) {
             </Tabs>
           </Group>
           
-          <Group gap="sm">
-            {/* <Button
+          <Group
+            display={user ? 'none' : 'flex'}
+            gap="sm"
+          >
+            <Button
               component={Link}
+              display={pathname.startsWith('/signin') ? 'none' : 'block'}
               href="/signin"
               onClick={close}
               variant="outline"
@@ -111,13 +128,19 @@ export default function AppLayout({ children }: { children: any }) {
             </Button>
             <Button
               component={Link}
+              display={pathname.startsWith('/signup') ? 'none' : 'block'}
               href="/signup"
               onClick={close}
             >
               Sign Up
-            </Button> */}
+            </Button>
+          </Group>
+          <Group
+            display={user ? 'flex' : 'none'}
+            gap="sm"
+          >
             <Button
-              onClick={close}
+              onClick={signOutRedirect}
               variant="outline"
             >
               Sign Out
