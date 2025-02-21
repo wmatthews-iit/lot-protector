@@ -45,7 +45,7 @@ export default function SignUpForm({ onSubmit }: { onSubmit: any }) {
         color="blue"
         data={[
           { value: '0', label: 'regular user' },
-          { value: '1', label: 'parking lot admin' },
+          { value: '1', label: 'parking lot manager' },
         ]}
       />
     </Group>

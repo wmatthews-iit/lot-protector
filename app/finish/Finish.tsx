@@ -2,10 +2,11 @@
 
 import SignInForm from '@/components/SignInForm';
 import SignUpForm from '@/components/SignUpForm';
-import { auth } from '@/lib/firebase/app';
+import { auth, functions } from '@/lib/firebase/app';
 import { Modal, Text, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { isSignInWithEmailLink, signInWithEmailLink, updateProfile } from 'firebase/auth';
+import { httpsCallable } from 'firebase/functions';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 
@@ -28,15 +29,22 @@ export default function Finish() {
           return;
         }
         
-        await signInWithEmailLink(auth, userEmail, window.location.href);
+        const userCredential = await signInWithEmailLink(auth, userEmail, window.location.href);
         window.localStorage.removeItem('name');
         window.localStorage.removeItem('email');
         window.localStorage.removeItem('role');
         if (!auth.currentUser) return;
         
         if (isSignUp) {
-          await updateProfile(auth.currentUser, { displayName: userName });
-          // CREATE USER DOCUMENT
+          await updateProfile(userCredential.user, { displayName: userName });
+          const result = await httpsCallable(functions, 'createPerson')({ name: userName!.length > 0 ? userName : undefined, role: userRole });
+          const resultData: any = result.data;
+          
+          if (resultData.success) await userCredential.user.getIdTokenResult(true);
+          else {
+            console.log(resultData.message);
+            return;
+          }
         }
         
         router.push('/live');

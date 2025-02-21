@@ -1,21 +1,51 @@
 'use client';
 
+import { db } from '@/lib/firebase/app';
+import { useUser } from '@/lib/firebase/useUser';
+import userValidation from '@/lib/validation/user';
 import {
   Button,
+  Modal,
   Text,
+  TextInput,
   Title,
 } from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { useDisclosure } from '@mantine/hooks';
+import { updateEmail } from 'firebase/auth';
+import { doc, updateDoc } from 'firebase/firestore';
 
 export default function Account() {
+  const user = useUser();
+  const [emailOpened, { toggle: toggleEmail, close: closeEmail }] = useDisclosure(false);
+  
+  const form = useForm({
+    mode: 'uncontrolled',
+    initialValues: { email: '' },
+    validate: { email: userValidation.email },
+  });
+  
+  const changeEmail = async ({ email }: { email: string }) => {
+    try {
+      if (!user) return;
+      await updateEmail(user, email);
+      await updateDoc(doc(db, 'people', user.uid), { email });
+      closeEmail();
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  
   return <>
     <Title
       mb="md"
       order={2}
     >Account</Title>
-    <Text fw="bold">Example Person</Text>
-    <Text>person@gmail.com</Text>
+    <Text fw="bold">{user?.displayName}</Text>
+    <Text>{user?.email}</Text>
     <Button
       mt="md"
+      onClick={toggleEmail}
     >
       Change Email
     </Button>
@@ -30,5 +60,24 @@ export default function Account() {
     >
       Delete Account
     </Button>
+    
+    <Modal
+      centered
+      onClose={closeEmail}
+      opened={emailOpened}
+      title="Change Email"
+      zIndex={1400}
+    >
+      <form onSubmit={form.onSubmit(changeEmail)}>
+        <Text mb="md">You may need to sign in again before changing your email</Text>
+        <TextInput
+          key={form.key('email')}
+          {...form.getInputProps('email')}
+          label="Email"
+          mb="md"
+        />
+        <Button type="submit">Change</Button>
+      </form>
+    </Modal>
   </>;
 }
