@@ -28,6 +28,7 @@ export default function SignUpForm({ onSubmit }: { onSubmit: any }) {
     <TextInput
       key={form.key('name')}
       {...form.getInputProps('name')}
+      data-autofocus
       label="Name"
       mb="sm"
     />

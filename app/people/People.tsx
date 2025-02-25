@@ -1,5 +1,8 @@
 'use client';
 
+import { db } from '@/lib/firebase/app';
+import { useUser } from '@/lib/firebase/useUser';
+import userValidation from '@/lib/validation/user';
 import {
   ActionIcon,
   Button,
@@ -10,44 +13,54 @@ import {
   Title,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
+import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import { IconSettings } from '@tabler/icons-react';
-import { useState } from 'react';
+import { collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function People() {
-  const people: any[] = [
-    {
-      id: '1',
-      name: 'Person 1',
-      email: 'person1@gmail.com',
-      expirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      licensePlate: 'ABC1234',
-    },
-    {
-      id: '2',
-      name: 'Person 2',
-      email: 'person2@gmail.com',
-      expirationDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
-      licensePlate: 'DEF5678',
-    },
-    {
-      id: '3',
-      name: 'Person 3',
-      email: 'person3@gmail.com',
-      expirationDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      licensePlate: 'GHI9012',
-    },
-  ];
+  const user = useUser();
+  const [people, setPeople] = useState<any[]>([]);
+  const router = useRouter();
+  
+  useEffect(() => {
+    if (typeof(user) === 'string') {
+      if (user === '') return;
+      else router.push('/signin');
+    } else if (user.role !== 1) router.push('/find');
+    
+    let ignore = false;
+    
+    (async () => {
+      if (ignore || typeof(user) === 'string' || user.role !== 1) return;
+      const newPeople: any[] = [];
+      const peopleDocuments = await getDocs(query(collection(db, 'people'),
+        where('manager_id', '==', user.uid)));
+      
+      peopleDocuments.forEach((personDocument) => {
+        const { name, email, license_plate, expiration_date } = personDocument.data();
+        
+        newPeople.push({
+          id: personDocument.id,
+          name,
+          email,
+          licensePlate: license_plate,
+          expirationDate: expiration_date.toDate(),
+        });
+      });
+      
+      setPeople(newPeople);
+    })();
+    
+    return () => { ignore = true };
+  }, [user]);
   
   const [selectedID, selectPerson] = useState<string>();
   const selectedPerson = selectedID ? people.find((person) => person.id === selectedID) : null;
   const [addOpened, { toggle: toggleAdd, close: closeAdd }] = useDisclosure(false);
   const [manageOpened, { toggle: toggleManage, close: closeManage }] = useDisclosure(false);
-  
-  const openManage = (person: any) => {
-    selectPerson(person.id);
-    toggleManage();
-  };
   
   const currentTime = new Date();
   currentTime.setHours(0);
@@ -57,7 +70,97 @@ export default function People() {
   
   const formatDate = (date: Date) => {
     return `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}/${date.getFullYear()}`;
-  }
+  };
+  
+  const addForm = useForm({
+    mode: 'uncontrolled',
+    initialValues: {
+      email: '',
+      licensePlate: '',
+      expirationDate: null,
+    } as { email: string, licensePlate: string, expirationDate: Date | null },
+    validate: {
+      email: userValidation.email,
+      licensePlate: userValidation.licensePlate,
+    },
+  });
+  
+  const updateForm = useForm({
+    mode: 'uncontrolled',
+    initialValues: {
+      licensePlate: '',
+      expirationDate: null,
+    } as { licensePlate: string, expirationDate: Date | null },
+    validate: {
+      licensePlate: userValidation.optionalLicensePlate,
+    },
+  });
+  
+  const openManage = (person: any) => {
+    selectPerson(person.id);
+    updateForm.reset();
+    toggleManage();
+  };
+  
+  const addPerson = async ({ email, licensePlate, expirationDate }:
+    { email: string, licensePlate: string, expirationDate: Date | null }) => {
+    try {
+      if (typeof(user) === 'string') return;
+      const personDocuments = await getDocs(query(collection(db, 'people'), where('email', '==', email)));
+      
+      if (personDocuments.empty) {
+        alert(`No account found with email: ${email}`);
+        return;
+      }
+      
+      const personDocument = personDocuments.docs[0];
+      const personID = personDocument.id;
+      
+      if (personDocument.get('manager_id').length > 0) {
+        alert('Account already has a manager');
+        return;
+      }
+      
+      await updateDoc(doc(db, 'people', personID),
+        { manager_id: user.uid, license_plate: licensePlate, expiration_date: expirationDate });
+      
+      setPeople([...people, {
+        id: personID,
+        name: personDocument.get('name'),
+        email,
+        licensePlate,
+        expirationDate,
+      }]);
+      
+      addForm.reset();
+      closeAdd();
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  
+  const updatePerson = async ({ licensePlate, expirationDate }:
+    { licensePlate: string, expirationDate: Date | null }) => {
+    try {
+      let updateInformation: any = {};
+      if (licensePlate) updateInformation.license_plate = licensePlate;
+      if (expirationDate) updateInformation.expiration_date = expirationDate;
+      if (!licensePlate && !expirationDate) return;
+      
+      await updateDoc(doc(db, 'people', selectedID!), updateInformation);
+      
+      updateInformation = {};
+      if (licensePlate) updateInformation.licensePlate = licensePlate;
+      if (expirationDate) updateInformation.expirationDate = expirationDate;
+      setPeople([...people.filter((person) => person.id !== selectedID!),
+        { ...selectedPerson, ...updateInformation }]);
+      
+      updateForm.reset();
+      closeManage();
+    } catch (error) {
+      console.log(error);
+    }
+  };
   
   return <>
     <Title
@@ -104,16 +207,23 @@ export default function People() {
       title="Add Person"
       zIndex={1400}
     >
-      <form onSubmit={(event) => event.preventDefault()}>
+      <form onSubmit={addForm.onSubmit(addPerson)}>
         <TextInput
+          key={addForm.key('email')}
+          {...addForm.getInputProps('email')}
+          data-autofocus
           label="Email"
           mb="sm"
         />
         <TextInput
+          key={addForm.key('licensePlate')}
+          {...addForm.getInputProps('licensePlate')}
           label="License Plate"
           mb="sm"
         />
         <DatePickerInput
+          key={addForm.key('expirationDate')}
+          {...addForm.getInputProps('expirationDate')}
           clearable
           label="Expiration Date"
           mb="md"
@@ -135,13 +245,20 @@ export default function People() {
       <Text mb="md">Expire{personExpired ? 'd' : 's'} on {selectedPerson ? formatDate(selectedPerson.expirationDate) : ''}</Text>
       <Text mb="md">License Plate: {selectedPerson?.licensePlate}</Text>
       <Title order={5}>Update Information</Title>
-      <form onSubmit={(event) => event.preventDefault()}>
+      <form onSubmit={updateForm.onSubmit(updatePerson)}>
         <DatePickerInput
+          key={updateForm.key('expirationDate')}
+          {...updateForm.getInputProps('expirationDate')}
           clearable
+          data-autofocus
+          description="Leave empty if not changing"
           label="Expiration Date"
           mb="sm"
         />
         <TextInput
+          key={updateForm.key('licensePlate')}
+          {...updateForm.getInputProps('licensePlate')}
+          description="Leave empty if not changing"
           label="License Plate"
           mb="md"
         />
@@ -154,7 +271,7 @@ export default function People() {
       <Button
         color="red"
         variant="outline"
-      >Delete</Button>
+      >Remove</Button>
     </Modal>
   </>;
 }

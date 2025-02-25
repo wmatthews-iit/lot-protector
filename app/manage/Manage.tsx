@@ -1,5 +1,6 @@
 'use client';
 
+import { useUser } from '@/lib/firebase/useUser';
 import {
   ActionIcon,
   Button,
@@ -19,7 +20,8 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { IconSettings } from '@tabler/icons-react';
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 const LazyMap = dynamic(() => import('@/components/Map'), {
   ssr: false,
@@ -27,6 +29,16 @@ const LazyMap = dynamic(() => import('@/components/Map'), {
 });
 
 export default function Manage() {
+  const user = useUser();
+  const router = useRouter();
+  
+  useEffect(() => {
+    if (typeof(user) === 'string') {
+      if (user === '') return;
+      else router.push('/signin');
+    } else if (user.role !== 1) router.push('/find');
+  });
+  
   const zones: any[] = [
     {
       id: '1',

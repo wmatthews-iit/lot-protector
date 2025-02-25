@@ -18,6 +18,7 @@ export default function SignInForm({ onSubmit }: { onSubmit: any }) {
     <TextInput
       key={form.key('email')}
       {...form.getInputProps('email')}
+      data-autofocus
       label="Email"
       mb="md"
     />

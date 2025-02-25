@@ -3,7 +3,7 @@
 import { auth } from '@/lib/firebase/app';
 import { useUser } from '@/lib/firebase/useUser';
 import { theme } from '@/theme';
-import { Anchor, AppShell, Burger, Button, Group, MantineProvider, NavLink, rem, Stack, Tabs } from '@mantine/core';
+import { Anchor, AppShell, Burger, Button, Group, MantineProvider, NavLink, rem, Stack, Tabs, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { signOut } from 'firebase/auth';
 import Link from 'next/link';
@@ -19,6 +19,7 @@ export default function AppLayout({ children }: { children: any }) {
     {
       href: '/live',
       label: 'Live Alerts',
+      requiresManager: true,
     },
     {
       href: '/find',
@@ -27,10 +28,12 @@ export default function AppLayout({ children }: { children: any }) {
     {
       href: '/manage',
       label: 'Manage Lot',
+      requiresManager: true,
     },
     {
       href: '/people',
       label: 'Manage People',
+      requiresManager: true,
     },
     {
       href: '/account',
@@ -100,21 +103,23 @@ export default function AppLayout({ children }: { children: any }) {
             visibleFrom="sm"
           >
             <Tabs
+              display={typeof(user) !== 'string' ? 'block' : 'none'}
               onChange={(value) => router.push(`/${value}`)}
               value={pathname.slice(1)}
             >
               <Tabs.List>
-                {links.map((link) => <Tabs.Tab
-                  key={link.href}
-                  onClick={close}
-                  value={link.href.slice(1)}
-                >{link.label}</Tabs.Tab>)}
+                {links.filter((link) => !link.requiresManager || user && typeof(user) !== 'string' && user.role === 1)
+                  .map((link) => <Tabs.Tab
+                    key={link.href}
+                    onClick={close}
+                    value={link.href.slice(1)}
+                  >{link.label}</Tabs.Tab>)}
               </Tabs.List>
             </Tabs>
           </Group>
           
           <Group
-            display={user ? 'none' : 'flex'}
+            display={typeof(user) !== 'string' ? 'none' : 'flex'}
             gap="sm"
           >
             <Button
@@ -131,12 +136,13 @@ export default function AppLayout({ children }: { children: any }) {
               display={pathname.startsWith('/signup') ? 'none' : 'block'}
               href="/signup"
               onClick={close}
+              variant={pathname.startsWith('/signin') ? 'outline' : 'filled'}
             >
               Sign Up
             </Button>
           </Group>
           <Group
-            display={user ? 'flex' : 'none'}
+            display={typeof(user) !== 'string' ? 'flex' : 'none'}
             gap="sm"
           >
             <Button
@@ -150,16 +156,35 @@ export default function AppLayout({ children }: { children: any }) {
       </AppShell.Header>
 
       <AppShell.Navbar>
-        <Stack gap={0}>
-          {links.map((link) => <NavLink
-            active={pathname.startsWith(link.href)}
-            component={Link}
-            href={link.href}
-            key={link.href}
-            label={link.label}
-            onClick={close}
-          />)}
+        <Stack
+          display={typeof(user) !== 'string' ? 'flex' : 'none'}
+          gap={0}
+        >
+          {links.filter((link) => !link.requiresManager || user && typeof(user) !== 'string' && user.role === 1)
+            .map((link) => <NavLink
+              active={pathname.startsWith(link.href)}
+              component={Link}
+              href={link.href}
+              key={link.href}
+              label={link.label}
+              onClick={close}
+            />)}
         </Stack>
+        <Text
+          display={typeof(user) !== 'string' ? 'none' : 'block'}
+          p="md"
+        >
+          <Anchor
+            component={Link}
+            href="/signin"
+            onClick={close}
+          >Sign in</Anchor> or&nbsp;
+          <Anchor
+            component={Link}
+            href="/signup"
+            onClick={close}
+          >sign up</Anchor> to use this app
+        </Text>
       </AppShell.Navbar>
 
       <AppShell.Main>{children}</AppShell.Main>

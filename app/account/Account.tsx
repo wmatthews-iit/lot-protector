@@ -14,9 +14,20 @@ import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import { updateEmail } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function Account() {
   const user = useUser();
+  const router = useRouter();
+  
+  useEffect(() => {
+    if (typeof(user) === 'string') {
+      if (user === '') return;
+      else router.push('/signin');
+    }
+  });
+  
   const [emailOpened, { toggle: toggleEmail, close: closeEmail }] = useDisclosure(false);
   
   const form = useForm({
@@ -27,7 +38,7 @@ export default function Account() {
   
   const changeEmail = async ({ email }: { email: string }) => {
     try {
-      if (!user) return;
+      if (typeof(user) === 'string') return;
       await updateEmail(user, email);
       await updateDoc(doc(db, 'people', user.uid), { email });
       closeEmail();
@@ -41,8 +52,8 @@ export default function Account() {
       mb="md"
       order={2}
     >Account</Title>
-    <Text fw="bold">{user?.displayName}</Text>
-    <Text>{user?.email}</Text>
+    <Text fw="bold">{typeof(user) !== 'string' ? user.displayName : ''}</Text>
+    <Text>{typeof(user) !== 'string' ? user.email : ''}</Text>
     <Button
       mt="md"
       onClick={toggleEmail}

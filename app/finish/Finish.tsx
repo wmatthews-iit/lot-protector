@@ -47,7 +47,8 @@ export default function Finish() {
           }
         }
         
-        router.push('/live');
+        const user = await userCredential.user.getIdTokenResult();
+        router.push(user.claims.isManager ? '/live' : '/find');
       }
     } catch (error) {
       console.log(error);
@@ -74,7 +75,7 @@ export default function Finish() {
       centered
       onClose={closeDetails}
       opened={detailsOpened}
-      title="Finish Sign Up"
+      title={`Finish Sign ${isSignUp ? 'Up' : 'In'}`}
       zIndex={1400}
     >
       {isSignUp ? <SignUpForm onSubmit={tryToFinish} />

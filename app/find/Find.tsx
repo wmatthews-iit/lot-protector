@@ -1,13 +1,26 @@
 'use client';
 
+import { useUser } from '@/lib/firebase/useUser';
 import {
   Card,
   Grid,
   Text,
   Title,
 } from '@mantine/core';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function Find() {
+  const user = useUser();
+  const router = useRouter();
+  
+  useEffect(() => {
+    if (typeof(user) === 'string') {
+      if (user === '') return;
+      else router.push('/signin');
+    }
+  });
+  
   const zones: any = {
     '1': {
       name: 'Zone A',
