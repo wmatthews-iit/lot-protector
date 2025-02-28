@@ -16,14 +16,9 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconEye } from '@tabler/icons-react';
-import dynamic from 'next/dynamic';
+import { Map } from '@vis.gl/react-google-maps';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-
-const LazyMap = dynamic(() => import('@/components/Map'), {
-  ssr: false,
-  loading: () => <Text>Loading...</Text>,
-});
 
 export default function Live() {
   const user = useUser();
@@ -34,7 +29,7 @@ export default function Live() {
       if (user === '') return;
       else router.push('/signin');
     } else if (user.role !== 1) router.push('/find');
-  });
+  }, [user]);
   
   const zones: any = {
     '1': {
@@ -96,7 +91,13 @@ export default function Live() {
         h="calc(100vh - 60px - 16px)"
         span={{ base: 12, md: 8 }}
       >
-        <LazyMap position={[41.83701364962227, -87.6259816795722]} />
+        <Map
+          defaultCenter={{ lat: 41.83701364962227, lng: -87.6259816795722 }}
+          defaultZoom={17}
+          disableDefaultUI={true}
+          gestureHandling="greedy"
+          style={{ width: '100%', height: 'calc(100vh - 60px - 32px)' }}
+        />
       </Grid.Col>
       
       <Grid.Col span={{ base: 12, md: 4 }}>

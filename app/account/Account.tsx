@@ -26,7 +26,7 @@ export default function Account() {
       if (user === '') return;
       else router.push('/signin');
     }
-  });
+  }, [user]);
   
   const [emailOpened, { toggle: toggleEmail, close: closeEmail }] = useDisclosure(false);
   

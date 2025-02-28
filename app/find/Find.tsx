@@ -19,7 +19,7 @@ export default function Find() {
       if (user === '') return;
       else router.push('/signin');
     }
-  });
+  }, [user]);
   
   const zones: any = {
     '1': {
