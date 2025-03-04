@@ -92,6 +92,7 @@ export default function Live() {
         span={{ base: 12, md: 8 }}
       >
         <Map
+          colorScheme="DARK"
           defaultCenter={{ lat: 41.83701364962227, lng: -87.6259816795722 }}
           defaultZoom={17}
           disableDefaultUI={true}
