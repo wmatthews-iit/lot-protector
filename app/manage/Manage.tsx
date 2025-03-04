@@ -555,14 +555,14 @@ export default function Manage() {
           >Cancel</Button>
         </Group>
       </form>
-      <Title
+      <Group
+        justify="space-between"
         my="md"
-        order={5}
-      >Spots</Title>
+      >
+        <Title order={5}>Spots</Title>
+        <Button>Create</Button>
+      </Group>
       <Stack>
-        <Box>
-          <Button>Create</Button>
-        </Box>
         <Text display={selectedZone?.spots?.length ? 'none' : 'block'}>No spots yet, create one above!</Text>
         {selectedZone?.spots
           .sort((a: any, b: any) => a.number - b.number)
