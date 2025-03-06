@@ -24,7 +24,7 @@ import {
 import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import { IconEye, IconSettings } from '@tabler/icons-react';
-import { Map, useMap } from '@vis.gl/react-google-maps';
+import { AdvancedMarker, Map, MapMouseEvent, Pin, useMap } from '@vis.gl/react-google-maps';
 import { addDoc, collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -53,8 +53,6 @@ export default function Manage() {
         
         for (const zone of zones) {
           const loadedZone = { ...zone, spots: [] };
-          loadedZone.nextSpot = loadedZone.next_spot;
-          delete loadedZone.next_spot;
           
           const spotDocuments = await getDocs(query(collection(db, 'parking_spots'),
             where('lot_id', '==', lotDocument.id), where('zone_id', '==', zone.id)));
@@ -90,13 +88,17 @@ export default function Manage() {
   const [selectedLotID, setLotID] = useState<string>();
   const selectedLot = selectedLotID ? lots.find((lot) => lot.id === selectedLotID) : null;
   const [selectedAddress, setSelectedAddress] = useState<any>();
-  const placesAPI = usePlacesAPI('search-map');
+  const placesAPI = usePlacesAPI('live-map');
   const [selectedZoneID, selectZone] = useState<string>();
   const selectedZone = selectedLot && selectedZoneID
     ? selectedLot.zones.find((zone: any) => zone.id == selectedZoneID) : null;
   const [createLotOpened, { toggle: toggleCreateLot, close: closeCreateLot }] = useDisclosure(false);
   const [createZoneOpened, { toggle: toggleCreateZone, close: closeCreateZone }] = useDisclosure(false);
   const [manageZoneOpened, { toggle: toggleManageZone, close: closeManageZone }] = useDisclosure(false);
+  const [newSpotDetails, setSpotDetails] = useState<any>();
+  const [selectedSpotID, setSelectedSpotID] = useState<string>();
+  const [movingSpot, setMovingSpot] = useState<boolean>();
+  const [newLocation, setNewLocation] = useState<number[]>();
   
   const lotForm = useForm({
     mode: 'controlled',
@@ -119,6 +121,7 @@ export default function Manage() {
   
   const showSpot = (location: any) => {
     liveMap?.panTo({ lat: location[0], lng: location[1] });
+    liveMap?.setZoom(17);
     closeManageZone();
   }
   
@@ -214,8 +217,6 @@ export default function Manage() {
         await updateDoc(doc(db, 'parking_lots', selectedLotID),
           { next_zone: selectedLot.nextZone + 1, zones });
         
-        delete zone.next_spot;
-        zone.nextSpot = 1;
         zone.spots = [];
         setLots([...lots.filter((lot) => lot.id !== selectedLotID),
           { ...selectedLot, nextZone: selectedLot.nextZone + 1, zones }]);
@@ -224,7 +225,7 @@ export default function Manage() {
         console.log(error);
       }
     });
-  }
+  };
   
   const updateZone = async ({ name }: { name: string }) => {
     if (!placesAPI || typeof(user) === 'string'
@@ -246,14 +247,14 @@ export default function Manage() {
             location: [location.lat(), location.lng()],
           };
           
-          zone.next_spot = zone.nextSpot;
-          delete zone.nextSpot;
+          const updatedZone = { ...zone };
+          delete updatedZone.spots;
+          
+          const updatedZones = [...selectedLot.zones.filter((zone: any) => zone.id != selectedZoneID), updatedZone];
           const zones = [...selectedLot.zones.filter((zone: any) => zone.id != selectedZoneID), zone];
           
-          await updateDoc(doc(db, 'parking_lots', selectedLotID), { zones });
+          await updateDoc(doc(db, 'parking_lots', selectedLotID), { zones: updatedZones });
           
-          zone.nextSpot = zone.next_spot;
-          delete zone.next_spot;
           setLots([...lots.filter((lot) => lot.id !== selectedLotID),
             { ...selectedLot, zones }]);
         } catch (error) {
@@ -262,18 +263,129 @@ export default function Manage() {
       });
     } else {
       const zone: any = { ...selectedZone, name };
-      zone.next_spot = zone.nextSpot;
-      delete zone.nextSpot;
       const zones = [...selectedLot.zones.filter((zone: any) => zone.id !== selectedZoneID), zone];
       
       await updateDoc(doc(db, 'parking_lots', selectedLotID), { zones });
       
-      zone.nextSpot = zone.next_spot;
-      delete zone.next_spot;
       setLots([...lots.filter((lot) => lot.id !== selectedLotID),
         { ...selectedLot, zones }]);
     }
-  }
+  };
+  
+  const startCreatingSpot = () => {
+    setSpotDetails({
+      lot_id: selectedLotID,
+      zone_id: Number(selectedZoneID),
+      number: selectedZone.next_spot,
+      location: [...selectedZone.location],
+    });
+    
+    closeManageZone();
+  };
+  
+  const onMapClick = (event: MapMouseEvent) => {
+    if (!event.detail.latLng) return;
+    
+    if (newSpotDetails) {
+      setSpotDetails({ ...newSpotDetails, location: [event.detail.latLng.lat, event.detail.latLng.lng] });
+    } else if (movingSpot) {
+      setNewLocation([event.detail.latLng.lat, event.detail.latLng.lng]);
+    }
+  };
+  
+  const createSpot = async () => {
+    if (!selectedLotID) return;
+    
+    try {
+      const spotDocument = await addDoc(collection(db, 'parking_spots'), {
+        ...newSpotDetails,
+        occupied: false,
+        violation: false,
+        last_working: new Date(),
+        battery: 1.0,
+      });
+      
+      const updatedZone = { ...selectedZone, next_spot: selectedZone.next_spot + 1 };
+      delete updatedZone.spots;
+      
+      await updateDoc(doc(db, 'parking_lots', selectedLotID),
+        { zones: [...selectedLot.zones.filter((zone: any) => zone.id != selectedZoneID), updatedZone] });
+      
+      setSpotDetails(null);
+      setLots([...lots.filter((lot) => lot.id !== selectedLotID),
+        { ...selectedLot,
+          zones: [...selectedLot.zones.filter((zone: any) => zone.id != selectedZoneID),
+            { ...selectedZone, next_spot: selectedZone.next_spot + 1, spots: [...selectedZone.spots, {
+              id: spotDocument.id,
+              number: newSpotDetails.number,
+              location: newSpotDetails.location,
+            }] }] }]);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  
+  const cancelSpotCreation = () => {
+    setSpotDetails(null);
+    toggleManageZone();
+  };
+  
+  const getVisibleSpots = () => {
+    if (!selectedLot) return;
+    const visibleSpots: any[] = [];
+    
+    selectedLot.zones.forEach((zone: any) => {
+      zone.spots.forEach((spot: any) => {
+        visibleSpots.push({
+          id: spot.id,
+          lot_id: selectedLotID,
+          zone_id: zone.id,
+          number: spot.number,
+          location: spot.location,
+        });
+      });
+    });
+    
+    return visibleSpots;
+  };
+  
+  const selectedSpot = getVisibleSpots()?.find((spot) => spot.id === selectedSpotID);
+  
+  const selectSpot = (id: string) => {
+    const spot = getVisibleSpots()?.find((spot) => spot.id === id);
+    if (!spot) return;
+    selectLot(spot.lot_id);
+    selectZone(`${spot.zone_id}`);
+    setSelectedSpotID(id);
+    setNewLocation(spot.location);
+  };
+  
+  const moveSpot = async () => {
+    if (!selectedLotID || !selectedSpotID) return;
+    
+    try {
+      await updateDoc(doc(db, 'parking_spots', selectedSpotID),
+        { location: newLocation });
+      
+      setMovingSpot(false);
+      setLots([...lots.filter((lot) => lot.id !== selectedLotID),
+        { ...selectedLot,
+          zones: [...selectedLot.zones.filter((zone: any) => zone.id != selectedZoneID),
+            { ...selectedZone,
+              spots: [...selectedZone.spots.filter((spot: any) => spot.id !== selectedSpotID), {
+                id: selectedSpotID,
+                number: selectedSpot.number,
+                location: newLocation,
+              }] }] }]);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  
+  const cancelMoveSpot = () => {
+    setMovingSpot(false);
+    setNewLocation(selectedSpot.location);
+  };
   
   return <>
     <Title
@@ -291,14 +403,6 @@ export default function Manage() {
       onClick={() => selectLot('')}
       variant="outline"
     >Back to Lots List</Button>
-    <Map
-      defaultCenter={{ lat: 41.83701364962227, lng: -87.6259816795722 }}
-      defaultZoom={17}
-      disableDefaultUI={true}
-      gestureHandling="greedy"
-      id="search-map"
-      style={{ display: 'none', width: '100%', height: '300px' }}
-    />
     <Grid display={selectedLot ? 'none' : 'flex'}>
       {(lots as any).sort((a: any, b: any) => a.name > b.name)
         .map((lot: any) => <Grid.Col
@@ -349,25 +453,76 @@ export default function Manage() {
           disableDefaultUI={true}
           gestureHandling="greedy"
           id="live-map"
+          mapId="4da06a36742951f0"
+          onClick={onMapClick}
           style={{ width: '100%', height: 'calc(100vh - 60px - 32px)' }}
-        />
+        >
+          <AdvancedMarker
+            style={{ display: newSpotDetails ? undefined : 'none' }}
+            key="new"
+            position={{ lat: newSpotDetails ? newSpotDetails.location[0] : 41.83701364962227,
+              lng: newSpotDetails ? newSpotDetails.location[1] : -87.6259816795722 }}
+          >
+            <Pin />
+          </AdvancedMarker>
+          
+          {getVisibleSpots()?.map((spot: any) => <AdvancedMarker
+            key={spot.id}
+            onClick={() => selectSpot(spot.id)}
+            position={spot.id === selectedSpotID && movingSpot && newLocation
+              ? { lat: newLocation[0], lng: newLocation[1] }
+              : { lat: spot.location[0], lng: spot.location[1] }}
+          >
+            <Pin />
+          </AdvancedMarker>)}
+        </Map>
       </Grid.Col>
       
       <Grid.Col span={{ base: 12, md: 4 }}>
-        {/* <Paper
+        <Paper
+          display={newSpotDetails ? 'block' : 'none'}
           mb="md"
           p="md"
           withBorder
         >
-          <Title order={2}>{zones[0].name} - Spot {zones[0].spots[0].number}</Title>
+          <Title order={2}>{selectedZone?.name} - New Spot {newSpotDetails?.number}</Title>
           <Group mt="md">
-            <Button>Move</Button>
+            <Button onClick={createSpot}>Confirm Create</Button>
+            <Button
+              onClick={cancelSpotCreation}
+              variant="outline"
+            >Cancel Create</Button>
+          </Group>
+        </Paper>
+        
+        <Paper
+          display={!newSpotDetails && selectedSpotID ? 'block' : 'none'}
+          mb="md"
+          p="md"
+          withBorder
+        >
+          <Title order={2}>{selectedZone?.name} - Spot {selectedSpot?.number}</Title>
+          <Group mt="md">
+            <Button
+              display={movingSpot ? 'block' : 'none'}
+              onClick={moveSpot}
+            >Confirm Move</Button>
+            <Button
+              variant={movingSpot ? 'outline' : 'filled'}
+              onClick={movingSpot ? cancelMoveSpot : () => setMovingSpot(true)}
+            >{ movingSpot ? 'Cancel Move' : 'Move' }</Button>
+            <Button
+              onClick={() => setSelectedSpotID('')}
+              display={movingSpot ? 'none' : 'block'}
+              variant="outline"
+            >Cancel</Button>
             <Button
               color="red"
+              display={movingSpot ? 'none' : 'block'}
               variant="outline"
             >Delete</Button>
           </Group>
-        </Paper> */}
+        </Paper>
         
         <Paper
           mb="md"
@@ -560,7 +715,7 @@ export default function Manage() {
         my="md"
       >
         <Title order={5}>Spots</Title>
-        <Button>Create</Button>
+        <Button onClick={startCreatingSpot}>Create</Button>
       </Group>
       <Stack>
         <Text display={selectedZone?.spots?.length ? 'none' : 'block'}>No spots yet, create one above!</Text>
