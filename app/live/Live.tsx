@@ -1,8 +1,10 @@
 'use client';
 
+import { db } from '@/lib/firebase/app';
 import { useUser } from '@/lib/firebase/useUser';
 import {
   ActionIcon,
+  Button,
   Card,
   Checkbox,
   Grid,
@@ -16,31 +18,42 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconEye } from '@tabler/icons-react';
-import { Map } from '@vis.gl/react-google-maps';
+import { AdvancedMarker, Map, Pin, useMap } from '@vis.gl/react-google-maps';
+import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 export default function Live() {
   const user = useUser();
   const router = useRouter();
+  const [lots, setLots] = useState<any[]>([]);
+  const [spots, setSpots] = useState<any[]>([]);
+  const [spotUnsubscribe, setSpotUnsubscribe] = useState<any>();
   
   useEffect(() => {
     if (typeof(user) === 'string') {
       if (user === '') return;
       else router.push('/signin');
     } else if (user.role !== 1) router.push('/find');
+    
+    let ignore = false;
+    
+    (async () => {
+      if (ignore || typeof(user) === 'string' || user.role !== 1) return;
+      
+      const newLots: any[] = [];
+      const lotDocuments = await getDocs(query(collection(db, 'parking_lots'),
+        where('manager_id', '==', user.uid)));
+      
+      lotDocuments.forEach((lotDocument) => {
+        newLots.push({ id: lotDocument.id, ...lotDocument.data() });
+      });
+      
+      setLots(newLots);
+    })();
+    
+    return () => { ignore = true; };
   }, [user]);
-  
-  const zones: any = {
-    '1': {
-      name: 'Zone A',
-      address: '123 Example St',
-    },
-    '2': {
-      name: 'Zone B',
-      address: '123 Example St',
-    },
-  };
   
   const alerts: any[] = [
     {
@@ -66,10 +79,60 @@ export default function Live() {
     },
   ];
   
+  const liveMap = useMap('live-map');
+  const [selectedLotID, setLotID] = useState<string>();
+  const selectedLot = selectedLotID ? lots.find((lot) => lot.id === selectedLotID) : null;
+  const [selectedSpotID, setSelectedSpotID] = useState<string>();
+  const selectedSpot = spots?.find((spot) => spot.id === selectedSpotID);
+  const selectedZone = selectedSpot
+    ? selectedLot.zones.find((zone: any) => zone.id == selectedSpot.zone_id) : null;
+  const [showValid, setShowValid] = useState<boolean>(true);
+  const [showDowned, setShowDowned] = useState<boolean>(true);
   const [selectedID, selectAlert] = useState<string>();
   const selectedAlert = selectedID ? alerts.find((alert) => alert.id === selectedID) : null;
-  const selectedZone = selectedAlert ? zones[selectedAlert.zone] : null;
+  // const selectedZone = selectedAlert ? zones[selectedAlert.zone] : null;
   const [viewOpened, { toggle: toggleView, close: closeView }] = useDisclosure(false);
+  
+  const selectLot = (lotID: string) => {
+    setLotID(lotID);
+    if (spotUnsubscribe && lotID != spotUnsubscribe.lotID) spotUnsubscribe.unsubscribe();
+    if (!lotID) return;
+    
+    const unsubscribe = onSnapshot(query(collection(db, 'parking_spots'),
+      where('lot_id', '==', lotID)), (querySnapshot) => {
+      const newSpots: any[] = [...spots];
+      
+      querySnapshot.forEach((spotDocument) => {
+        const oldSpot = newSpots.findIndex((spot) => spot.id == spotDocument.id);
+        if (oldSpot >= 0) newSpots.splice(oldSpot, 1);
+        newSpots.push({ id: spotDocument.id, ...spotDocument.data() });
+      });
+      
+      setSpots(newSpots);
+    }, (error) => console.log(error));
+    
+    setSpotUnsubscribe({ lotID, unsubscribe });
+  }
+  
+  const selectSpot = (spot: any) => {
+    if (!spot) return;
+    setSelectedSpotID(spot.id);
+    liveMap?.panTo({ lat: spot.location[0], lng: spot.location[1] });
+    liveMap?.setZoom(20);
+  };
+  
+  const downed = (spot: any) => {
+    if (!spot) return true;
+    return Date.now() - spot.last_working.toDate().getTime() > 60 * 60 * 1000;
+  };
+  
+  const getPin = (spot: any) => {
+    if (!spot) return null;
+    if (spot.id == selectedSpotID) return <Pin background={'#40c057'} glyphColor={'#fff'} borderColor={'#37b24d'} />;
+    if (downed(spot)) return <Pin background={'#868e96'} glyphColor={'#fff'} borderColor={'#495057'} />;
+    if (spot.violation) return <Pin background={'#fa5252'} glyphColor={'#fff'} borderColor={'#f03e3e'} />;
+    return <Pin background={'#228be6'} glyphColor={'#fff'} borderColor={'#1c7ed6'} />;
+  };
   
   const viewAlert = (alert: any) => {
     selectAlert(alert.id);
@@ -86,54 +149,122 @@ export default function Live() {
   };
   
   return <>
-    <Grid>
+    <Title
+      mb="md"
+      order={2}
+    >Live Alerts{selectedLot ? ` for ${selectedLot.name}` : ''}</Title>
+    <Button
+      display={selectedLot ? 'block' : 'none'}
+      mb="md"
+      onClick={() => selectLot('')}
+      variant="outline"
+    >Back to Lots List</Button>
+    <Grid display={selectedLot ? 'none' : 'flex'}>
+      {(lots as any).sort((a: any, b: any) => a.name > b.name)
+        .map((lot: any) => <Grid.Col
+        key={lot.id}
+        span={{ base: 12, md: 4 }}
+      >
+        <Card>
+          <Map
+            clickableIcons={false}
+            colorScheme="DARK"
+            defaultCenter={{ lat: lot.location[0], lng: lot.location[1] }}
+            defaultZoom={17}
+            disableDefaultUI={true}
+            gestureHandling="none"
+            style={{ width: '100%', height: '300px' }}
+          />
+          <Grid
+            align="center"
+            mt="md"
+          >
+            <Grid.Col span="auto">
+              <Title order={3}>{lot.name}</Title>
+              <Text>{lot.address}</Text>
+            </Grid.Col>
+            <Grid.Col
+              h={rem(44)}
+              span="content"
+            >
+              <ActionIcon onClick={() => selectLot(lot.id)}>
+                <IconEye />
+              </ActionIcon>
+            </Grid.Col>
+          </Grid>
+        </Card>
+      </Grid.Col>)}
+    </Grid>
+    
+    <Grid display={selectedLot ? 'flex' : 'none'}>
       <Grid.Col
         h="calc(100vh - 60px - 16px)"
         span={{ base: 12, md: 8 }}
       >
         <Map
           colorScheme="DARK"
-          defaultCenter={{ lat: 41.83701364962227, lng: -87.6259816795722 }}
+          defaultCenter={{ lat: selectedLot ? selectedLot.location[0] : 41.83701364962227,
+            lng: selectedLot ? selectedLot.location[1] : -87.6259816795722 }}
           defaultZoom={17}
           disableDefaultUI={true}
           gestureHandling="greedy"
+          id="live-map"
+          mapId="4da06a36742951f0"
           style={{ width: '100%', height: 'calc(100vh - 60px - 32px)' }}
-        />
+        >
+          {spots?.filter((spot: any) => (spot.violation || showValid) && (!downed(spot) || showDowned))
+            .map((spot: any) => <AdvancedMarker
+            key={spot.id}
+            onClick={() => selectSpot(spot)}
+            position={{ lat: spot.location[0], lng: spot.location[1] }}
+          >
+            {getPin(spot)}
+          </AdvancedMarker>)}
+        </Map>
       </Grid.Col>
       
       <Grid.Col span={{ base: 12, md: 4 }}>
         <Paper
+          display={selectedSpotID ? 'block' : 'none'}
+          mb="md"
+          p="md"
+          withBorder
+        >
+          <Title order={2}>{selectedZone?.name} - Spot {selectedSpot?.number}</Title>
+          <Text mt="md">{selectedSpot?.occupied ? 'Occupied' : 'Empty'}
+            {selectedSpot?.occupied ? `, ${(selectedSpot.violation ? '' : 'no ')}violation` : ''}</Text>
+          <Text mt="md">Status: {selectedSpot ? (downed(selectedSpot) ? 'Down' : 'Working') : ''}</Text>
+          <Text>Battery: {selectedSpot ? (selectedSpot.battery * 100).toFixed(2) : 0}%</Text>
+          <Button
+            onClick={() => setSelectedSpotID('')}
+            mt="md"
+            variant="outline"
+          >Close</Button>
+        </Paper>
+        
+        <Paper
+          mb="md"
           p="md"
           withBorder
         >
           <Title order={2}>Settings</Title>
           <Checkbox
-            defaultChecked
+            checked={showValid}
             description="If unchecked, only sensors that are currently detecting violations will be shown. If checked, sensors with no cars or valid cars will be shown"
             label="Show Valid Sensors"
             mt="md"
+            onChange={(event) => setShowValid(event.currentTarget.checked)}
           />
           <Checkbox
-            defaultChecked
+            checked={showDowned}
             description="A sensor is downed if it ran out of battery or if it's not working"
             label="Show Downed Sensors"
             mt="sm"
+            onChange={(event) => setShowDowned(event.currentTarget.checked)}
           />
         </Paper>
         
         <Paper
-          mt="md"
-          p="md"
-          withBorder
-        >
-          <Title order={2}>Zone A - Spot 1</Title>
-          <Text mt="md">Occupied, no violation</Text>
-          <Text mt="md">Status: Working</Text>
-          <Text>Battery: 50%</Text>
-        </Paper>
-        
-        <Paper
-          mt="md"
           p="md"
           withBorder
         >
@@ -142,7 +273,7 @@ export default function Live() {
             order={2}
           >Alerts</Title>
           <Stack>
-            {alerts
+            {/* {alerts
               .sort((a, b) => b.time.getTime() - a.time.getTime())
               .map((alert) => {
               const zone = zones[alert.zone];
@@ -164,7 +295,7 @@ export default function Live() {
                   </Grid.Col>
                 </Grid>
               </Card>;
-            })}
+            })} */}
           </Stack>
         </Paper>
       </Grid.Col>
@@ -177,8 +308,8 @@ export default function Live() {
       title="View Alert"
       zIndex={1400}
     >
-      <Title order={4}>{selectedZone?.name} - Spot {selectedAlert?.spot}</Title>
-      <Text mb="md">{selectedZone?.address}</Text>
+      {/* <Title order={4}>{selectedZone?.name} - Spot {selectedAlert?.spot}</Title>
+      <Text mb="md">{selectedZone?.address}</Text> */}
       <Text>Violation occurred at {selectedAlert ? formatTime(selectedAlert.time) : ''} by someone with the license plate: <strong>{selectedAlert?.licensePlate}</strong></Text>
       <Image
         mt="md"

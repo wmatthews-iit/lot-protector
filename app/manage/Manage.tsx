@@ -32,6 +32,7 @@ import { useEffect, useState } from 'react';
 export default function Manage() {
   const user = useUser();
   const router = useRouter();
+  const [lots, setLots] = useState<any[]>([]);
   
   useEffect(() => {
     if (typeof(user) === 'string') {
@@ -40,7 +41,7 @@ export default function Manage() {
     } else if (user.role !== 1) router.push('/find');
     
     let ignore = false;
-        
+    
     (async () => {
       if (ignore || typeof(user) === 'string' || user.role !== 1) return;
       const newLots: any[] = [];
@@ -82,9 +83,7 @@ export default function Manage() {
     return () => { ignore = true };
   }, [user]);
   
-  const [lots, setLots] = useState<any[]>([]);
-  
-  const liveMap = useMap('live-map')
+  const liveMap = useMap('live-map');
   const [selectedLotID, setLotID] = useState<string>();
   const selectedLot = selectedLotID ? lots.find((lot) => lot.id === selectedLotID) : null;
   const [selectedAddress, setSelectedAddress] = useState<any>();
@@ -212,7 +211,11 @@ export default function Manage() {
           next_spot: 1,
         };
         
-        const zones = [...selectedLot.zones, zone];
+        const zones = [...selectedLot.zones.map((z: any) => {
+          const newZone = { ...z };
+          delete newZone.spots;
+          return newZone;
+        }), zone];
         
         await updateDoc(doc(db, 'parking_lots', selectedLotID),
           { next_zone: selectedLot.nextZone + 1, zones });
@@ -250,8 +253,13 @@ export default function Manage() {
           const updatedZone = { ...zone };
           delete updatedZone.spots;
           
-          const updatedZones = [...selectedLot.zones.filter((zone: any) => zone.id != selectedZoneID), updatedZone];
-          const zones = [...selectedLot.zones.filter((zone: any) => zone.id != selectedZoneID), zone];
+          const otherZones = selectedLot.zones.filter((zone: any) => zone.id != selectedZoneID);
+          const updatedZones = [...otherZones.map((z: any) => {
+            const newZone = { ...z };
+            delete newZone.spots;
+            return newZone;
+          }), updatedZone];
+          const zones = [...otherZones, zone];
           
           await updateDoc(doc(db, 'parking_lots', selectedLotID), { zones: updatedZones });
           
@@ -263,9 +271,18 @@ export default function Manage() {
       });
     } else {
       const zone: any = { ...selectedZone, name };
-      const zones = [...selectedLot.zones.filter((zone: any) => zone.id !== selectedZoneID), zone];
+      const updatedZone = { ...zone };
+      delete updatedZone.spots;
       
-      await updateDoc(doc(db, 'parking_lots', selectedLotID), { zones });
+      const otherZones = selectedLot.zones.filter((zone: any) => zone.id != selectedZoneID);
+      const updatedZones = [...otherZones.map((z: any) => {
+        const newZone = { ...z };
+        delete newZone.spots;
+        return newZone;
+      }), updatedZone];
+      const zones = [...otherZones, zone];
+      
+      await updateDoc(doc(db, 'parking_lots', selectedLotID), { zones: updatedZones });
       
       setLots([...lots.filter((lot) => lot.id !== selectedLotID),
         { ...selectedLot, zones }]);
@@ -309,7 +326,11 @@ export default function Manage() {
       delete updatedZone.spots;
       
       await updateDoc(doc(db, 'parking_lots', selectedLotID),
-        { zones: [...selectedLot.zones.filter((zone: any) => zone.id != selectedZoneID), updatedZone] });
+        { zones: [...selectedLot.zones.filter((zone: any) => zone.id != selectedZoneID).map((z: any) => {
+          const newZone = { ...z };
+          delete newZone.spots;
+          return newZone;
+        }), updatedZone] });
       
       setSpotDetails(null);
       setLots([...lots.filter((lot) => lot.id !== selectedLotID),
@@ -358,6 +379,8 @@ export default function Manage() {
     selectZone(`${spot.zone_id}`);
     setSelectedSpotID(id);
     setNewLocation(spot.location);
+    liveMap?.panTo({ lat: spot.location[0], lng: spot.location[1] });
+    liveMap?.setZoom(20);
   };
   
   const moveSpot = async () => {
@@ -440,7 +463,7 @@ export default function Manage() {
       </Grid.Col>)}
     </Grid>
     
-    <Grid display={selectedLot ? 'block' : 'none'}>
+    <Grid display={selectedLot ? 'flex' : 'none'}>
       <Grid.Col
         h="calc(100vh - 60px - 16px)"
         span={{ base: 12, md: 8 }}
@@ -463,7 +486,7 @@ export default function Manage() {
             position={{ lat: newSpotDetails ? newSpotDetails.location[0] : 41.83701364962227,
               lng: newSpotDetails ? newSpotDetails.location[1] : -87.6259816795722 }}
           >
-            <Pin />
+            <Pin background={'#ffd43b'} glyphColor={'#fff'} borderColor={'#fcc419'} />
           </AdvancedMarker>
           
           {getVisibleSpots()?.map((spot: any) => <AdvancedMarker
@@ -473,7 +496,8 @@ export default function Manage() {
               ? { lat: newLocation[0], lng: newLocation[1] }
               : { lat: spot.location[0], lng: spot.location[1] }}
           >
-            <Pin />
+            {spot.id == selectedSpotID ? <Pin background={'#40c057'} glyphColor={'#fff'} borderColor={'#37b24d'} />
+              : <Pin background={'#228be6'} glyphColor={'#fff'} borderColor={'#1c7ed6'} />}
           </AdvancedMarker>)}
         </Map>
       </Grid.Col>
@@ -515,7 +539,7 @@ export default function Manage() {
               onClick={() => setSelectedSpotID('')}
               display={movingSpot ? 'none' : 'block'}
               variant="outline"
-            >Cancel</Button>
+            >Close</Button>
             <Button
               color="red"
               display={movingSpot ? 'none' : 'block'}
