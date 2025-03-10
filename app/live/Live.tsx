@@ -29,6 +29,9 @@ export default function Live() {
   const [lots, setLots] = useState<any[]>([]);
   const [spots, setSpots] = useState<any[]>([]);
   const [spotUnsubscribe, setSpotUnsubscribe] = useState<any>();
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [spotSnapshot, setSpotSnapshot] = useState<any>();
+  const [alertSnapshot, setAlertSnapshot] = useState<any>();
   
   useEffect(() => {
     if (typeof(user) === 'string') {
@@ -55,30 +58,6 @@ export default function Live() {
     return () => { ignore = true; };
   }, [user]);
   
-  const alerts: any[] = [
-    {
-      id: '1',
-      zone: '1',
-      spot: '1',
-      time: new Date(),
-      licensePlate: 'ABC1234',
-    },
-    {
-      id: '2',
-      zone: '2',
-      spot: '3',
-      time: new Date(Date.now() + 60 * 60 * 1000),
-      licensePlate: 'DEF5678',
-    },
-    {
-      id: '3',
-      zone: '1',
-      spot: '5',
-      time: new Date(Date.now() + 2 * 60 * 60 * 1000),
-      licensePlate: 'GHI9012',
-    },
-  ];
-  
   const liveMap = useMap('live-map');
   const [selectedLotID, setLotID] = useState<string>();
   const selectedLot = selectedLotID ? lots.find((lot) => lot.id === selectedLotID) : null;
@@ -95,24 +74,56 @@ export default function Live() {
   
   const selectLot = (lotID: string) => {
     setLotID(lotID);
-    if (spotUnsubscribe && lotID != spotUnsubscribe.lotID) spotUnsubscribe.unsubscribe();
+    
+    if (spotUnsubscribe && lotID != spotUnsubscribe.lotID) {
+      spotUnsubscribe.unsubscribeFromSpot();
+      spotUnsubscribe.unsubscribeFromAlerts();
+    }
+    
     if (!lotID) return;
     
-    const unsubscribe = onSnapshot(query(collection(db, 'parking_spots'),
-      where('lot_id', '==', lotID)), (querySnapshot) => {
-      const newSpots: any[] = [...spots];
-      
-      querySnapshot.forEach((spotDocument) => {
-        const oldSpot = newSpots.findIndex((spot) => spot.id == spotDocument.id);
-        if (oldSpot >= 0) newSpots.splice(oldSpot, 1);
-        newSpots.push({ id: spotDocument.id, ...spotDocument.data() });
-      });
-      
-      setSpots(newSpots);
-    }, (error) => console.log(error));
+    const unsubscribeFromSpot = onSnapshot(query(collection(db, 'parking_spots'),
+      where('lot_id', '==', lotID)), (querySnapshot) => setSpotSnapshot(querySnapshot), (error) => console.log(error));
     
-    setSpotUnsubscribe({ lotID, unsubscribe });
-  }
+    const unsubscribeFromAlerts = onSnapshot(query(collection(db, 'alerts'),
+      where('lot_id', '==', lotID)), (querySnapshot) => setAlertSnapshot(querySnapshot),
+      (error) => console.log(error));
+    
+    setSpotUnsubscribe({ lotID, unsubscribeFromSpot, unsubscribeFromAlerts });
+  };
+  
+  useEffect(() => {
+    if (!spotSnapshot) return;
+    const newSpots: any[] = [...spots];
+    
+    spotSnapshot.forEach((spotDocument: any) => {
+      const oldSpot = newSpots.findIndex((spot) => spot.id == spotDocument.id);
+      if (oldSpot >= 0) newSpots.splice(oldSpot, 1);
+      newSpots.push({ id: spotDocument.id, ...spotDocument.data() });
+    });
+    
+    setSpots(newSpots);
+  }, [spotSnapshot]);
+  
+  useEffect(() => {
+    if (!alertSnapshot) return;
+    const newAlerts: any[] = [...alerts];
+    
+    alertSnapshot.forEach((alertDocument: any) => {
+      const oldAlert = newAlerts.findIndex((alert) => alert.id == alertDocument.id);
+      if (oldAlert >= 0) newAlerts.splice(oldAlert, 1);
+      const newAlert: any = { id: alertDocument.id, ...alertDocument.data(),
+        time: alertDocument.get('time').toDate() };
+      const spot = spots.find((s) => s.id === newAlert.spot_id);
+      const zone = selectedLot.zones.find((z: any) => z.id == spot.zone_id);
+      newAlert.spot = spot.number;
+      newAlert.zone = zone.name;
+      newAlert.address = zone.address;
+      newAlerts.push(newAlert);
+    });
+    
+    setAlerts(newAlerts);
+  }, [alertSnapshot]);
   
   const selectSpot = (spot: any) => {
     if (!spot) return;
@@ -137,6 +148,7 @@ export default function Live() {
   const viewAlert = (alert: any) => {
     selectAlert(alert.id);
     toggleView();
+    selectSpot(spots.find((spot) => spot.id == alert.spot_id));
   };
   
   const formatTime = (time: Date) => {
@@ -273,16 +285,14 @@ export default function Live() {
             order={2}
           >Alerts</Title>
           <Stack>
-            {/* {alerts
+            {alerts
               .sort((a, b) => b.time.getTime() - a.time.getTime())
               .map((alert) => {
-              const zone = zones[alert.zone];
-              
               return <Card key={alert.id}>
                 <Grid align="center">
                   <Grid.Col span="auto">
-                    <Text fw="bold">{zone.name} - Spot {alert.spot}</Text>
-                    <Text>{zone.address}</Text>
+                    <Text fw="bold">{alert.zone} - Spot {alert.spot}</Text>
+                    <Text>{alert.address}</Text>
                     <Text>{formatTime(alert.time)}</Text>
                   </Grid.Col>
                   <Grid.Col
@@ -295,7 +305,7 @@ export default function Live() {
                   </Grid.Col>
                 </Grid>
               </Card>;
-            })} */}
+            })}
           </Stack>
         </Paper>
       </Grid.Col>
@@ -308,9 +318,9 @@ export default function Live() {
       title="View Alert"
       zIndex={1400}
     >
-      {/* <Title order={4}>{selectedZone?.name} - Spot {selectedAlert?.spot}</Title>
-      <Text mb="md">{selectedZone?.address}</Text> */}
-      <Text>Violation occurred at {selectedAlert ? formatTime(selectedAlert.time) : ''} by someone with the license plate: <strong>{selectedAlert?.licensePlate}</strong></Text>
+      <Title order={4}>{selectedAlert?.zone} - Spot {selectedAlert?.spot}</Title>
+      <Text mb="md">{selectedAlert?.address}</Text>
+      <Text>Violation occurred at {selectedAlert ? formatTime(selectedAlert.time) : ''} by someone with the license plate: <strong>{selectedAlert?.license_plate}</strong></Text>
       <Image
         mt="md"
         src="https://raw.githubusercontent.com/mantinedev/mantine/master/.demo/images/bg-10.png"

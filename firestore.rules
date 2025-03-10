@@ -18,10 +18,17 @@ service cloud.firestore {
         && request.auth.uid == resource.data.manager_id;
     }
     
-    match /parking_spots/{lotID} {
+    match /parking_spots/{spotID} {
       allow read: if true;
       allow write: if request.auth != null && request.auth.token.isManager == true
         && request.auth.uid == get(/databases/$(database)/documents/parking_lots/$(request.resource.data.lot_id)).data.manager_id;
+    }
+    
+    match /alerts/{alertID} {
+      allow read: if request.auth != null && request.auth.token.isManager == true
+        && request.auth.uid == get(/databases/$(database)/documents/parking_lots/$(resource.data.lot_id)).data.manager_id;
+      allow delete: if request.auth != null && request.auth.token.isManager == true
+        && request.auth.uid == get(/databases/$(database)/documents/parking_lots/$(resource.data.lot_id)).data.manager_id;
     }
   }
 }

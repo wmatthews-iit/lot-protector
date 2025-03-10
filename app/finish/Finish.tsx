@@ -48,7 +48,7 @@ export default function Finish() {
         }
         
         const user = await userCredential.user.getIdTokenResult();
-        router.push(user.claims.isManager ? '/live' : '/find');
+        window.location.replace(user.claims.isManager ? '/live' : '/find');
       }
     } catch (error) {
       console.log(error);
