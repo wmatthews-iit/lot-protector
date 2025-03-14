@@ -1,9 +1,12 @@
 'use client';
 
+import AddressSearch from '@/components/AddressSearch';
 import { db } from '@/lib/firebase/app';
 import { useUser } from '@/lib/firebase/useUser';
+import usePlacesAPI from '@/lib/usePlacesAPI';
 import {
   ActionIcon,
+  Box,
   Button,
   Card,
   Grid,
@@ -52,6 +55,9 @@ export default function Find() {
   
   const [selectedLotID, setLotID] = useState<string>();
   const selectedLot = selectedLotID ? lots.find((lot) => lot.id === selectedLotID) : null;
+  const [selectedAddress, setSelectedAddress] = useState<any>();
+  const [searched, setSearched] = useState(false);
+  const placesAPI = usePlacesAPI('live-map');
   
   const selectLot = (lotID: string) => {
     setLotID(lotID);
@@ -59,7 +65,8 @@ export default function Find() {
     if (!lotID) return;
     
     const unsubscribeFromSpot = onSnapshot(query(collection(db, 'parking_spots'),
-      where('lot_id', '==', lotID), where('occupied', '==', false)), (querySnapshot) => setSpotSnapshot(querySnapshot), (error) => console.log(error));
+      where('lot_id', '==', lotID), where('occupied', '==', false)),
+      (querySnapshot) => setSpotSnapshot(querySnapshot), (error) => console.log(error));
     
     setSpotUnsubscribe({ lotID, unsubscribeFromSpot });
   };
@@ -78,17 +85,74 @@ export default function Find() {
     setSpots(newSpots);
   }, [spotSnapshot]);
   
+  useEffect(() => setSearched(false), [selectedAddress]);
+  
+  const searchForLot = async () => {
+    try {
+      if (!selectedAddress || !placesAPI || typeof(user) === 'string') return;
+      
+      placesAPI.getDetails({ placeId: selectedAddress.place_id }, async (result) => {
+        if (!result) return;
+        const { formatted_address } = result;
+        
+        try {
+          const lotDocuments = await getDocs(query(collection(db, 'parking_lots'),
+            where('address', '==', formatted_address)));
+          const newLots: any[] = [];
+          
+          if (!lotDocuments.empty) {
+            const lotDocument = lotDocuments.docs[0];
+            newLots.push({ id: lotDocument.id, ...lotDocument.data() });
+          }
+          
+          setLots(newLots);
+          setSearched(true);
+        } catch (error) {
+          console.log(error);
+        }
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  
   return <>
     <Title
       mb="md"
       order={2}
     >Available Parking Spots{selectedLot ? ` for ${selectedLot.name}` : ''}</Title>
+    <Box display={selectedLot || typeof(user) === 'string' || user.role == 1 ? 'none' : 'block'}>
+      <Text mb="xs">Search for a parking lot by address</Text>
+      <AddressSearch
+        selectedAddress={selectedAddress}
+        setSelectedAddress={setSelectedAddress}
+      />
+      <Button
+        disabled={!selectedAddress || selectedAddress.length === 0}
+        my="md"
+        onClick={searchForLot}
+      >Search</Button>
+      <Text
+        display={searched && lots.length === 0 ? 'flex' : 'none'}
+        mb="md"
+      >No parking lots with that address</Text>
+    </Box>
     <Button
       display={selectedLot ? 'block' : 'none'}
       mb="md"
       onClick={() => selectLot('')}
       variant="outline"
     >Back to Lots List</Button>
+    <Map
+      colorScheme="DARK"
+      defaultCenter={{ lat: selectedLot ? selectedLot.location[0] : 41.83701364962227,
+        lng: selectedLot ? selectedLot.location[1] : -87.6259816795722 }}
+      defaultZoom={17}
+      disableDefaultUI={true}
+      gestureHandling="greedy"
+      id="live-map"
+      style={{ display: 'none' }}
+    />
     <Grid display={selectedLot ? 'none' : 'flex'}>
       {(lots as any).sort((a: any, b: any) => a.name > b.name)
         .map((lot: any) => <Grid.Col
