@@ -69,7 +69,6 @@ export default function Live() {
   const [showDowned, setShowDowned] = useState<boolean>(true);
   const [selectedID, selectAlert] = useState<string>();
   const selectedAlert = selectedID ? alerts.find((alert) => alert.id === selectedID) : null;
-  // const selectedZone = selectedAlert ? zones[selectedAlert.zone] : null;
   const [viewOpened, { toggle: toggleView, close: closeView }] = useDisclosure(false);
   
   const selectLot = (lotID: string) => {

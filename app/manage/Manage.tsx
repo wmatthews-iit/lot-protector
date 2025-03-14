@@ -118,12 +118,6 @@ export default function Manage() {
   
   const showZone = (zone: any) => liveMap?.panTo({ lat: zone.location[0], lng: zone.location[1] });
   
-  const showSpot = (location: any) => {
-    liveMap?.panTo({ lat: location[0], lng: location[1] });
-    liveMap?.setZoom(17);
-    closeManageZone();
-  }
-  
   const openManageZone = (zone: any) => {
     selectZone(`${zone.id}`);
     resetZoneEdit(zone);
@@ -341,6 +335,7 @@ export default function Manage() {
               number: newSpotDetails.number,
               location: newSpotDetails.location,
             }] }] }]);
+      toggleManageZone();
     } catch (error) {
       console.log(error);
     }
@@ -356,7 +351,7 @@ export default function Manage() {
     const visibleSpots: any[] = [];
     
     selectedLot.zones.forEach((zone: any) => {
-      zone.spots.forEach((spot: any) => {
+      zone.spots?.forEach((spot: any) => {
         visibleSpots.push({
           id: spot.id,
           lot_id: selectedLotID,
@@ -381,6 +376,11 @@ export default function Manage() {
     setNewLocation(spot.location);
     liveMap?.panTo({ lat: spot.location[0], lng: spot.location[1] });
     liveMap?.setZoom(20);
+  };
+  
+  const showSpot = (spot: any) => {
+    selectSpot(spot.id);
+    closeManageZone();
   };
   
   const moveSpot = async () => {
@@ -608,7 +608,7 @@ export default function Manage() {
                 <Grid.Col span="auto">
                   <Text fw="bold">{zone.name}</Text>
                   <Text>{zone.address}</Text>
-                  <Text>{zone.spots.length} Spot{zone.spots.length !== 1 ? 's' : ''}</Text>
+                  <Text>{zone.spots?.length} Spot{zone.spots?.length !== 1 ? 's' : ''}</Text>
                 </Grid.Col>
                 <Grid.Col
                   h={rem(44)}
@@ -751,7 +751,7 @@ export default function Manage() {
         >
           <Text>{spot.number}</Text>
           <Group>
-            <Button onClick={() => showSpot(spot.location)}>View</Button>
+            <Button onClick={() => showSpot(spot)}>View</Button>
             <Button
               color="red"
               variant="outline"
