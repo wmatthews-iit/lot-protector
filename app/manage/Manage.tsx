@@ -140,7 +140,7 @@ export default function Manage() {
           name,
           address: formatted_address,
           location: [location.lat(), location.lng()],
-          time_to_alert: timeToAlert,
+          time_to_alert: Number(timeToAlert),
           next_zone: 0,
           zones: [],
         };
@@ -151,7 +151,7 @@ export default function Manage() {
         delete lot.manager_id;
         delete lot.time_to_alert;
         delete lot.next_zone;
-        lot.timeToAlert = timeToAlert;
+        lot.timeToAlert = Number(timeToAlert);
         lot.nextZone = 0;
         setLots([...lots, lot]);
         closeCreateLot();

@@ -3,25 +3,82 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /people/{personID} {
+      function personIsValid(person) {
+        return person.keys().hasAll(['manager_id', 'name', 'email', 'license_plate', 'expiration_date'])
+          && person.manager_id is string
+          && person.name is string
+          && person.name.size() >= 3
+          && person.name.size() <= 100
+          && person.email is string
+          && person.email.size() <= 100
+          && person.license_plate is string
+          && person.license_plate.size() <= 8
+          && person.expiration_date is timestamp;
+      }
+      
       allow read: if request.auth != null
         && (request.auth.uid == personID || request.auth.token.isManager == true);
-      allow update, delete: if request.auth != null
+      allow update: if request.auth != null
         && (request.auth.uid == personID || request.auth.token.isManager == true
-          && (request.auth.uid == resource.data.manager_id || request.auth.uid == request.resource.data.manager_id));
+          && (request.auth.uid == resource.data.manager_id || request.auth.uid == request.resource.data.manager_id))
+        && personIsValid(request.resource.data);
+      allow delete: if request.auth != null
+        && (request.auth.uid == personID || request.auth.token.isManager == true
+          && request.auth.uid == resource.data.manager_id);
     }
     
     match /parking_lots/{lotID} {
+      function lotIsValid(lot) {
+        return lot.keys().hasAll(['manager_id', 'name', 'address', 'location', 'time_to_alert', 'next_zone', 'zones'])
+          && lot.manager_id is string
+          && lot.name is string
+          && lot.name.size() >= 3
+          && lot.name.size() <= 100
+          && lot.address is string
+          && lot.address.size() >= 3
+          && lot.address.size() <= 1000
+          && lot.location is list
+          && lot.location.size() == 2
+          && lot.time_to_alert is number
+          && lot.time_to_alert >= 1
+          && lot.next_zone is number
+          && lot.next_zone >= 0
+          && lot.zones is list;
+      }
+      
       allow read: if true;
       allow create: if request.auth != null && request.auth.token.isManager == true
-        && request.auth.uid == request.resource.data.manager_id;
-      allow update, delete: if request.auth != null && request.auth.token.isManager == true
+        && request.auth.uid == request.resource.data.manager_id
+        && lotIsValid(request.resource.data);
+      allow update: if request.auth != null && request.auth.token.isManager == true
+        && request.auth.uid == resource.data.manager_id
+        && lotIsValid(request.resource.data);
+      allow delete: if request.auth != null && request.auth.token.isManager == true
         && request.auth.uid == resource.data.manager_id;
     }
     
     match /parking_spots/{spotID} {
+      function spotIsValid(spot) {
+        return spot.keys().hasAll(['lot_id', 'zone_id', 'number', 'location', 'occupied', 'violation', 'last_working', 'battery'])
+          && spot.lot_id is string
+          && spot.zone_id is number
+          && spot.zone_id >= 0
+          && spot.number is number
+          && spot.number >= 1
+          && spot.location is list
+          && spot.location.size() == 2
+          && spot.occupied is bool
+          && spot.violation is bool
+          && spot.last_working is timestamp
+          && spot.battery is number
+          && spot.battery >= 0
+          && spot.battery <= 1;
+      }
+      
       allow read: if true;
       allow write: if request.auth != null && request.auth.token.isManager == true
-        && request.auth.uid == get(/databases/$(database)/documents/parking_lots/$(request.resource.data.lot_id)).data.manager_id;
+        && request.auth.uid == get(/databases/$(database)/documents/parking_lots/$(request.resource.data.lot_id)).data.manager_id
+        && spotIsValid(request.resource.data);
     }
     
     match /alerts/{alertID} {
