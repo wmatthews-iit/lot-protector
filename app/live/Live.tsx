@@ -1,6 +1,6 @@
 'use client';
 
-import { db } from '@/lib/firebase/app';
+import { db, functions } from '@/lib/firebase/app';
 import { useUser } from '@/lib/firebase/useUser';
 import {
   ActionIcon,
@@ -20,6 +20,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconEye } from '@tabler/icons-react';
 import { AdvancedMarker, Map, Pin, useMap } from '@vis.gl/react-google-maps';
 import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -243,12 +244,12 @@ export default function Live() {
         >
           <Title order={2}>{selectedZone?.name} - Spot {selectedSpot?.number}</Title>
           <Text mt="md">{selectedSpot?.occupied ? 'Occupied' : 'Empty'}
-            {selectedSpot?.occupied ? `, ${(selectedSpot.violation ? '' : 'no ')}violation` : ''}</Text>
+            {selectedSpot?.occupied ? `, ${(selectedSpot.violation ? 'in ' : 'no ')}violation` : ''}</Text>
           <Text mt="md">Status: {selectedSpot ? (downed(selectedSpot) ? 'Down' : 'Working') : ''}</Text>
           <Text>Battery: {selectedSpot ? (selectedSpot.battery * 100).toFixed(2) : 0}%</Text>
           <Button
-            onClick={() => setSelectedSpotID('')}
             mt="md"
+            onClick={() => setSelectedSpotID('')}
             variant="outline"
           >Close</Button>
         </Paper>

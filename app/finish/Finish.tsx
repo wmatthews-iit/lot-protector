@@ -108,7 +108,8 @@ export default function Finish() {
     }
   };
   
-  const confirmNumber = async () => {
+  const confirmNumber = async (e: any) => {
+    e?.preventDefault();
     if (!recaptchaVerifier || isSignUp && !auth.currentUser) return;
     
     try {
@@ -116,15 +117,14 @@ export default function Finish() {
         const phoneCredential = PhoneAuthProvider.credential(verificationID, code);
         const multiFactorAssertion = PhoneMultiFactorGenerator.assertion(phoneCredential);
         await multiFactor(auth.currentUser!).enroll(multiFactorAssertion, 'phone');
-      }
-      else {
+      } else {
         const phoneCredential = PhoneAuthProvider.credential(verificationID, code);
         const multiFactorAssertion = PhoneMultiFactorGenerator.assertion(phoneCredential);
         await resolver.resolveSignIn(multiFactorAssertion);
       }
       
       const token = await auth.currentUser!.getIdTokenResult(true);
-      window.location.replace(token.claims.isManager ? '/live' : '/find');
+      window.location.replace(token.claims.isManager ? (isSignUp ? '/manage' : '/live') : '/find');
     } catch (error) {
       console.log(error);
     }
@@ -134,38 +134,43 @@ export default function Finish() {
     <Title
       mb="md"
       order={1}
-    >Finish{finished ? 'ed' : 'ing'} Sign {isSignUp ? 'Up' : 'In'}</Title>
+    >Finishing Sign {isSignUp ? 'Up' : 'In'}</Title>
     <Text display={(!isSignUp || finished) ? 'none' : 'block'}>Finishing {isSignUp ? 'creating' : 'signing into'} your account...please wait</Text>
     <Box display={(!isSignUp || finished) && !textSent ? 'block' : 'none'}>
       <Text mb="md">Please complete two factor authentication through a text message. Standard rates will apply</Text>
-      <TextInput
-        data-autofocus
-        description="Format: +10123456789"
-        display={isSignUp ? 'block' : 'none'}
-        label="Phone Number"
-        mb="sm"
-        onChange={(event) => setPhoneNumber(event.currentTarget.value)}
-        value={phoneNumber}
-      />
-      <Button
-        disabled={isSignUp && phoneNumber.length === 0}
-        id="complete-button"
-        onClick={isSignUp ? sendText : (() => tryToFinish({}))}
-      >Send Text</Button>
+      <form onSubmit={isSignUp ? ((e) => { e.preventDefault(); sendText(null) })
+        : ((e) => { e.preventDefault(); tryToFinish({}) })}>
+        <TextInput
+          data-autofocus
+          description="Format: +10123456789"
+          display={isSignUp ? 'block' : 'none'}
+          label="Phone Number"
+          mb="sm"
+          onChange={(event) => setPhoneNumber(event.currentTarget.value)}
+          value={phoneNumber}
+        />
+        <Button
+          disabled={isSignUp && phoneNumber.length === 0}
+          id="complete-button"
+          type="submit"
+        >Send Text</Button>
+      </form>
     </Box>
     
     <Box display={(!isSignUp || finished) && textSent ? 'block' : 'none'}>
-      <TextInput
-        data-autofocus
-        label="Code"
-        mb="sm"
-        onChange={(event) => setCode(event.currentTarget.value)}
-        value={code}
-      />
-      <Button
-        disabled={isSignUp && phoneNumber.length === 0}
-        onClick={confirmNumber}
-      >Confirm Number</Button>
+      <form onSubmit={confirmNumber}>
+        <TextInput
+          data-autofocus
+          label="Code"
+          mb="sm"
+          onChange={(event) => setCode(event.currentTarget.value)}
+          value={code}
+        />
+        <Button
+          disabled={isSignUp && phoneNumber.length === 0}
+          type="submit"
+        >Confirm Number</Button>
+      </form>
     </Box>
     
     <Modal
