@@ -25,7 +25,7 @@ import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import { IconEye, IconSettings } from '@tabler/icons-react';
 import { AdvancedMarker, Map, MapMouseEvent, Pin, useMap } from '@vis.gl/react-google-maps';
-import { addDoc, collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -173,6 +173,31 @@ export default function Manage() {
     }
   };
   
+  const deleteLot = async () => {
+    if (typeof(user) === 'string' || !selectedLotID) return;
+    
+    try {
+      const spotDocuments = await getDocs(query(collection(db, 'parking_spots'), where('lot_id', '==', selectedLotID)));
+      
+      for (const spotDocument of spotDocuments.docs) {
+        await deleteDoc(spotDocument.ref);
+      }
+      
+      const alertDocuments = await getDocs(query(collection(db, 'alerts'), where('lot_id', '==', selectedLotID)));
+      
+      for (const alertDocument of alertDocuments.docs) {
+        await deleteDoc(alertDocument.ref);
+      }
+      
+      await deleteDoc(doc(db, 'parking_lots', selectedLotID));
+      
+      setLots([...lots.filter((lot) => lot.id !== selectedLotID)]);
+      selectLot('');
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  
   const resetLotEdit = (lotID?: string) => {
     if (!lotID) return;
     const lot = lots.find((lot) => lot.id === lotID);
@@ -203,21 +228,28 @@ export default function Manage() {
           address: formatted_address,
           location: [location.lat(), location.lng()],
           next_spot: 1,
+          spots: [],
         };
         
-        const zones = [...selectedLot.zones.map((z: any) => {
+        const updatedZone = { ...zone };
+        delete updatedZone.spots;
+        
+        const otherZones = selectedLot.zones.filter((zone: any) => zone.id != selectedZoneID);
+        const updatedZones = [...otherZones.map((z: any) => {
           const newZone = { ...z };
           delete newZone.spots;
           return newZone;
-        }), zone];
+        }), updatedZone];
+        const zones = [...otherZones, zone];
         
         await updateDoc(doc(db, 'parking_lots', selectedLotID),
-          { next_zone: selectedLot.nextZone + 1, zones });
+          { next_zone: selectedLot.nextZone + 1, zones: updatedZones });
         
         zone.spots = [];
         setLots([...lots.filter((lot) => lot.id !== selectedLotID),
           { ...selectedLot, nextZone: selectedLot.nextZone + 1, zones }]);
         closeCreateZone();
+        zoneForm.reset();
       } catch (error) {
         console.log(error);
       }
@@ -281,6 +313,36 @@ export default function Manage() {
       setLots([...lots.filter((lot) => lot.id !== selectedLotID),
         { ...selectedLot, zones }]);
     }
+  };
+  
+  const deleteZone = async () => {
+    if (!selectedLotID || !selectedLot || !selectedZoneID || !selectedZone) return;
+    
+    const otherZones = selectedLot.zones.filter((zone: any) => zone.id != selectedZoneID);
+    const updatedZones = [...otherZones.map((z: any) => {
+      const newZone = { ...z };
+      delete newZone.spots;
+      return newZone;
+    })];
+    const zones = [...otherZones];
+    
+    await updateDoc(doc(db, 'parking_lots', selectedLotID), { zones: updatedZones });
+    
+    const spotDocuments = await getDocs(query(collection(db, 'parking_spots'), where('lot_id', '==', selectedLotID), where('zone_id', '==', Number(selectedZoneID))));
+    
+    for (const spotDocument of spotDocuments.docs) {
+      await deleteDoc(spotDocument.ref);
+      
+      const alertDocuments = await getDocs(query(collection(db, 'alerts'), where('lot_id', '==', selectedLotID), where('spot_id', '==', spotDocument.id)));
+      
+      for (const alertDocument of alertDocuments.docs) {
+        await deleteDoc(alertDocument.ref);
+      }
+    }
+    
+    setLots([...lots.filter((lot) => lot.id !== selectedLotID),
+      { ...selectedLot, zones }]);
+    closeManageZone();
   };
   
   const startCreatingSpot = () => {
@@ -410,6 +472,30 @@ export default function Manage() {
     setNewLocation(selectedSpot.location);
   };
   
+  const deleteSpot = async (spotID: string) => {
+    if (!selectedLotID) return;
+    
+    try {
+      await deleteDoc(doc(db, 'parking_spots', spotID));
+      const alertDocuments = await getDocs(query(collection(db, 'alerts'), where('lot_id', '==', selectedLotID), where('spot_id', '==', spotID)));
+      
+      for (const alertDocument of alertDocuments.docs) {
+        await deleteDoc(alertDocument.ref);
+      }
+      
+      setLots([...lots.filter((lot) => lot.id !== selectedLotID),
+        { ...selectedLot,
+          zones: [...selectedLot.zones.filter((zone: any) => zone.id != selectedZoneID),
+            { ...selectedZone,
+              spots: [...selectedZone.spots.filter((spot: any) => spot.id !== spotID)] }] }]);
+      
+      selectSpot('');
+      closeManageZone();
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  
   return <>
     <Title
       mb="md"
@@ -515,7 +601,7 @@ export default function Manage() {
             <Button
               onClick={cancelSpotCreation}
               variant="outline"
-            >Cancel Create</Button>
+            >Cancel</Button>
           </Group>
         </Paper>
         
@@ -539,10 +625,11 @@ export default function Manage() {
               onClick={() => setSelectedSpotID('')}
               display={movingSpot ? 'none' : 'block'}
               variant="outline"
-            >Close</Button>
+            >Cancel</Button>
             <Button
               color="red"
               display={movingSpot ? 'none' : 'block'}
+              onClick={() => deleteSpot(selectedSpotID!)}
               variant="outline"
             >Delete</Button>
           </Group>
@@ -637,6 +724,7 @@ export default function Manage() {
           <Button
             color="red"
             mt="md"
+            onClick={deleteLot}
             variant="outline"
           >Delete Lot</Button>
         </Paper>
@@ -754,6 +842,7 @@ export default function Manage() {
             <Button onClick={() => showSpot(spot)}>View</Button>
             <Button
               color="red"
+              onClick={() => deleteSpot(spot.id)}
               variant="outline"
             >Delete</Button>
           </Group>
@@ -765,6 +854,7 @@ export default function Manage() {
       >Danger Zone</Title>
       <Button
         color="red"
+        onClick={deleteZone}
         variant="outline"
       >Delete</Button>
     </Modal>

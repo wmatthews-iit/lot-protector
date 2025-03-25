@@ -1,6 +1,6 @@
 'use client';
 
-import { db } from '@/lib/firebase/app';
+import { auth, db } from '@/lib/firebase/app';
 import { useUser } from '@/lib/firebase/useUser';
 import userValidation from '@/lib/validation/user';
 import {
@@ -12,8 +12,8 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
-import { updateEmail } from 'firebase/auth';
-import { doc, updateDoc } from 'firebase/firestore';
+import { deleteUser, updateEmail } from 'firebase/auth';
+import { collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
@@ -47,6 +47,44 @@ export default function Account() {
     }
   };
   
+  const deleteAccount = async () => {
+    if (typeof(user) === 'string') return;
+    
+    try {
+      if (user.role == 1) {
+        const lotDocuments = await getDocs(query(collection(db, 'parking_lots'), where('manager_id', '==', user.uid)));
+        
+        for (const lotDocument of lotDocuments.docs) {
+          const spotDocuments = await getDocs(query(collection(db, 'parking_spots'), where('lot_id', '==', lotDocument.id)));
+          
+          for (const spotDocument of spotDocuments.docs) {
+            await deleteDoc(spotDocument.ref);
+          }
+          
+          const alertDocuments = await getDocs(query(collection(db, 'alerts'), where('lot_id', '==', lotDocument.id)));
+          
+          for (const alertDocument of alertDocuments.docs) {
+            await deleteDoc(alertDocument.ref);
+          }
+          
+          await deleteDoc(doc(db, 'parking_lots', lotDocument.id));
+        }
+        
+        const peopleDocuments = await getDocs(query(collection(db, 'people'), where('manager_id', '==', user.uid)));
+        
+        for (const personDocument of peopleDocuments.docs) {
+          updateDoc(personDocument.ref, { manager_id: '' });
+        }
+      }
+      
+      await deleteDoc(doc(db, 'people', user.uid));
+      await deleteUser(auth.currentUser!);
+      window.location.replace('/signup');
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  
   return <>
     <Title
       mb="md"
@@ -67,6 +105,7 @@ export default function Account() {
     <Button
       color="red"
       mt="md"
+      onClick={deleteAccount}
       variant="outline"
     >
       Delete Account

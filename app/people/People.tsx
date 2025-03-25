@@ -162,6 +162,17 @@ export default function People() {
     }
   };
   
+  const removePerson = async () => {
+    try {
+      await updateDoc(doc(db, 'people', selectedID!), { manager_id: '' });
+      
+      setPeople([...people.filter((person) => person.id !== selectedID!)]);
+      closeManage();
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  
   return <>
     <Title
       mb="md"
@@ -270,6 +281,7 @@ export default function People() {
       >Danger Zone</Title>
       <Button
         color="red"
+        onClick={removePerson}
         variant="outline"
       >Remove</Button>
     </Modal>
