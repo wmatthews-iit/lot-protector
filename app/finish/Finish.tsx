@@ -178,7 +178,6 @@ export default function Finish() {
       onClose={closeDetails}
       opened={detailsOpened}
       title={`Finish Sign ${isSignUp ? 'Up' : 'In'}`}
-      zIndex={1400}
     >
       {isSignUp ? <SignUpForm onSubmit={tryToFinish} />
         : <SignInForm onSubmit={tryToFinish} />}

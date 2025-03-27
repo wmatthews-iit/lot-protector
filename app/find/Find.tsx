@@ -121,22 +121,6 @@ export default function Find() {
       mb="md"
       order={2}
     >Available Parking Spots{selectedLot ? ` for ${selectedLot.name}` : ''}</Title>
-    <Box display={selectedLot || typeof(user) === 'string' || user.role == 1 ? 'none' : 'block'}>
-      <Text mb="xs">Search for a parking lot by address</Text>
-      <AddressSearch
-        selectedAddress={selectedAddress}
-        setSelectedAddress={setSelectedAddress}
-      />
-      <Button
-        disabled={!selectedAddress || selectedAddress.length === 0}
-        my="md"
-        onClick={searchForLot}
-      >Search</Button>
-      <Text
-        display={searched && lots.length === 0 ? 'flex' : 'none'}
-        mb="md"
-      >No parking lots with that address</Text>
-    </Box>
     <Button
       display={selectedLot ? 'block' : 'none'}
       mb="md"
@@ -153,54 +137,25 @@ export default function Find() {
       id="live-map"
       style={{ display: 'none' }}
     />
-    <Grid display={selectedLot ? 'none' : 'flex'}>
-      {(lots as any).sort((a: any, b: any) => a.name > b.name)
-        .map((lot: any) => <Grid.Col
-        key={lot.id}
-        span={{ base: 12, md: 4 }}
-      >
-        <Card>
-          <Map
-            clickableIcons={false}
-            colorScheme="DARK"
-            defaultCenter={{ lat: lot.location[0], lng: lot.location[1] }}
-            defaultZoom={17}
-            disableDefaultUI={true}
-            gestureHandling="none"
-            style={{ width: '100%', height: '300px' }}
-          />
-          <Grid
-            align="center"
-            mt="md"
-          >
-            <Grid.Col span="auto">
-              <Title order={3}>{lot.name}</Title>
-              <Text>{lot.address}</Text>
-            </Grid.Col>
-            <Grid.Col
-              h={rem(44)}
-              span="content"
-            >
-              <ActionIcon onClick={() => selectLot(lot.id)}>
-                <IconEye />
-              </ActionIcon>
-            </Grid.Col>
-          </Grid>
-        </Card>
-      </Grid.Col>)}
-    </Grid>
     
     <Text display={selectedLot && spots && spots.length === 0 ? 'flex' : 'none'}>No spots available</Text>
     
-    <Grid display={selectedLot ? 'flex' : 'none'}>
+    <Grid
+      align="align"
+      display={selectedLot ? 'flex' : 'none'}
+    >
       {(spots as any)?.sort((a: any, b: any) => a.zone.localeCompare(b.zone) || a.number - b.number)
         .map((spot: any) => {
         return <Grid.Col
           key={spot.id}
           span={{ base: 12, md: 3 }}
         >
-          <Card>
-            <Grid>
+          <Card h="100%">
+            <Grid
+              align="center"
+              h="100%"
+              style={{ alignContent: 'center' }}
+            >
               <Grid.Col span={6}>
                 <Text fw="bold">{spot.zone}</Text>
               </Grid.Col>
@@ -211,6 +166,65 @@ export default function Find() {
           </Card>
         </Grid.Col>;
       })}
+    </Grid>
+    
+    <Grid display={selectedLot || typeof(user) === 'string' || user.role == 1 ? 'none' : 'flex'}>
+      <Grid.Col span={{ base: 12, md: 6 }}>
+        <Box>
+          <Text mb="xs">Search for a parking lot by address</Text>
+          <AddressSearch
+            selectedAddress={selectedAddress}
+            setSelectedAddress={setSelectedAddress}
+          />
+          <Button
+            disabled={!selectedAddress || selectedAddress.length === 0}
+            mt="md"
+            onClick={searchForLot}
+          >Search</Button>
+          <Text
+            display={searched && lots.length === 0 ? 'flex' : 'none'}
+            my="md"
+          >No parking lots with that address</Text>
+        </Box>
+      </Grid.Col>
+      <Grid.Col span={{ base: 12, md: 6 }}>
+        <Grid>
+          {(lots as any).sort((a: any, b: any) => a.name > b.name)
+            .map((lot: any) => <Grid.Col
+            key={lot.id}
+            span={12}
+          >
+            <Card>
+              <Map
+                clickableIcons={false}
+                colorScheme="DARK"
+                defaultCenter={{ lat: lot.location[0], lng: lot.location[1] }}
+                defaultZoom={17}
+                disableDefaultUI={true}
+                gestureHandling="none"
+                style={{ width: '100%', height: '300px' }}
+              />
+              <Grid
+                align="center"
+                mt="md"
+              >
+                <Grid.Col span="auto">
+                  <Title order={3}>{lot.name}</Title>
+                  <Text>{lot.address}</Text>
+                </Grid.Col>
+                <Grid.Col
+                  h={rem(44)}
+                  span="content"
+                >
+                  <ActionIcon onClick={() => selectLot(lot.id)}>
+                    <IconEye />
+                  </ActionIcon>
+                </Grid.Col>
+              </Grid>
+            </Card>
+          </Grid.Col>)}
+        </Grid>
+      </Grid.Col>
     </Grid>
   </>;
 }

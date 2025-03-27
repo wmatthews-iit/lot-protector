@@ -98,6 +98,9 @@ export default function Manage() {
   const [selectedSpotID, setSelectedSpotID] = useState<string>();
   const [movingSpot, setMovingSpot] = useState<boolean>();
   const [newLocation, setNewLocation] = useState<number[]>();
+  const [willDeleteLot, setWillDeleteLot] = useState<boolean>();
+  const [willDeleteZone, setWillDeleteZone] = useState<boolean>();
+  const [willDeleteSpot, setWillDeleteSpot] = useState<string>();
   
   const lotForm = useForm({
     mode: 'controlled',
@@ -114,6 +117,7 @@ export default function Manage() {
   const selectLot = (lotID: string) => {
     setLotID(lotID);
     resetLotEdit(lotID);
+    setWillDeleteLot(false);
   };
   
   const showZone = (zone: any) => liveMap?.panTo({ lat: zone.location[0], lng: zone.location[1] });
@@ -122,6 +126,8 @@ export default function Manage() {
     selectZone(`${zone.id}`);
     resetZoneEdit(zone);
     toggleManageZone();
+    setWillDeleteZone(false);
+    setWillDeleteSpot('');
   };
   
   const createLot = ({ name, timeToAlert }: { name: string, timeToAlert: string }) => {
@@ -721,12 +727,19 @@ export default function Manage() {
           withBorder
         >
           <Title order={2}>Danger Zone</Title>
-          <Button
-            color="red"
-            mt="md"
-            onClick={deleteLot}
-            variant="outline"
-          >Delete Lot</Button>
+          <Text mt="md">Are you sure you want to delete this parking lot? You cannot undo this action. All related data will be deleted.</Text>
+          <Group mt="md">
+            <Button
+              color={willDeleteLot ? 'blue' : 'red'}
+              onClick={() => setWillDeleteLot(!willDeleteLot)}
+              variant="outline"
+            >{willDeleteLot ? 'Cancel' : 'Delete'}</Button>
+            <Button
+              color="red"
+              display={willDeleteLot ? 'flex' : 'none'}
+              onClick={deleteLot}
+            >Delete</Button>
+          </Group>
         </Paper>
       </Grid.Col>
     </Grid>
@@ -736,7 +749,6 @@ export default function Manage() {
       onClose={closeCreateLot}
       opened={createLotOpened}
       title="Create Parking Lot"
-      zIndex={1400}
     >
       <form onSubmit={lotForm.onSubmit(createLot)}>
         <TextInput
@@ -768,7 +780,6 @@ export default function Manage() {
       onClose={closeCreateZone}
       opened={createZoneOpened}
       title="Create Zone"
-      zIndex={1400}
     >
       <form onSubmit={zoneForm.onSubmit(createZone)}>
         <TextInput
@@ -793,7 +804,6 @@ export default function Manage() {
       onClose={closeManageZone}
       opened={manageZoneOpened}
       title="Manage Zone"
-      zIndex={1400}
     >
       <Title order={4}>{selectedZone?.name}</Title>
       <Text mb="md">{selectedZone?.address}</Text>
@@ -840,11 +850,18 @@ export default function Manage() {
           <Text>{spot.number}</Text>
           <Group>
             <Button onClick={() => showSpot(spot)}>View</Button>
-            <Button
-              color="red"
-              onClick={() => deleteSpot(spot.id)}
-              variant="outline"
-            >Delete</Button>
+            <Group>
+              <Button
+                color={willDeleteSpot === spot.id ? 'blue' : 'red'}
+                onClick={() => setWillDeleteSpot(willDeleteSpot === spot.id ? '' : spot.id)}
+                variant="outline"
+              >{willDeleteSpot === spot.id ? 'Cancel' : 'Delete'}</Button>
+              <Button
+                color="red"
+                display={willDeleteSpot === spot.id ? 'flex' : 'none'}
+                onClick={() => deleteSpot(spot.id)}
+              >Delete</Button>
+            </Group>
           </Group>
         </Group>)}
       </Stack>
@@ -852,11 +869,19 @@ export default function Manage() {
         my="md"
         order={5}
       >Danger Zone</Title>
-      <Button
-        color="red"
-        onClick={deleteZone}
-        variant="outline"
-      >Delete</Button>
+      <Text>Are you sure you want to delete this parking zone? You cannot undo this action. All related data will be deleted.</Text>
+      <Group mt="md">
+        <Button
+          color={willDeleteZone ? 'blue' : 'red'}
+          onClick={() => setWillDeleteZone(!willDeleteZone)}
+          variant="outline"
+        >{willDeleteZone ? 'Cancel' : 'Delete'}</Button>
+        <Button
+          color="red"
+          display={willDeleteZone ? 'flex' : 'none'}
+          onClick={deleteZone}
+        >Delete</Button>
+      </Group>
     </Modal>
   </>;
 }

@@ -5,6 +5,7 @@ import { useUser } from '@/lib/firebase/useUser';
 import userValidation from '@/lib/validation/user';
 import {
   Button,
+  Group,
   Modal,
   Text,
   TextInput,
@@ -29,6 +30,7 @@ export default function Account() {
   }, [user]);
   
   const [emailOpened, { toggle: toggleEmail, close: closeEmail }] = useDisclosure(false);
+  const [deleteOpened, { toggle: toggleDelete, close: closeDelete }] = useDisclosure(false);
   
   const form = useForm({
     mode: 'uncontrolled',
@@ -105,7 +107,7 @@ export default function Account() {
     <Button
       color="red"
       mt="md"
-      onClick={deleteAccount}
+      onClick={toggleDelete}
       variant="outline"
     >
       Delete Account
@@ -116,7 +118,6 @@ export default function Account() {
       onClose={closeEmail}
       opened={emailOpened}
       title="Change Email"
-      zIndex={1400}
     >
       <form onSubmit={form.onSubmit(changeEmail)}>
         <Text mb="md">You may need to sign in again before changing your email</Text>
@@ -128,6 +129,29 @@ export default function Account() {
         />
         <Button type="submit">Change</Button>
       </form>
+    </Modal>
+    
+    <Modal
+      centered
+      onClose={closeDelete}
+      opened={deleteOpened}
+      title="Delete Account"
+    >
+      <Text mb="md">Are you sure you want to delete your account? This will delete all data related to your account, except for any parking violations.</Text>
+      <Group justify="space-between">
+        <Button
+          onClick={closeDelete}
+          variant="outline"
+        >
+          Cancel
+        </Button>
+        <Button
+          color="red"
+          onClick={deleteAccount}
+        >
+          Delete
+        </Button>
+      </Group>
     </Modal>
   </>;
 }

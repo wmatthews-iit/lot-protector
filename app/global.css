@@ -1,3 +1,53 @@
-.mantine-Popover-dropdown {
-  z-index: 1400 !important;
+:where([data-mantine-color-scheme="dark"]) .mantine-Button-root:where(:disabled:not([data-loading]),
+[data-disabled]:not([data-loading])),
+:where([data-mantine-color-scheme="dark"]) .mantine-SegmentedControl-root {
+  background-color: var(--mantine-color-gray-8);
+}
+
+.mantine-NumberInput-control {
+  --control-border: 0.125rem solid var(--mantine-color-gray-8);
+}
+
+.mantine-NumberInput-control:hover {
+  background-color: var(--mantine-color-gray-8);
+}
+
+.mantine-AppShell-header, .mantine-Popover-dropdown {
+  border-width: 0;
+}
+
+[data-mantine-color-scheme="dark"] .mantine-Tabs-root {
+  --tab-border-color: var(--mantine-color-gray-7);
+}
+
+[data-mantine-color-scheme="dark"] .mantine-Tabs-root[data-variant="default"] {
+  --tab-hover-color: var(--mantine-color-gray-7);
+}
+
+.mantine-NavLink-root {
+  --nl-bg: var(--mantine-color-blue-6);
+}
+
+.mantine-DatePickerInput-calendarHeaderControl.mantine-UnstyledButton-root:hover,
+.mantine-DatePickerInput-calendarHeaderLevel.mantine-UnstyledButton-root:hover,
+.mantine-DatePickerInput-day.mantine-UnstyledButton-root:hover,
+.mantine-DatePickerInput-pickerControl.mantine-UnstyledButton-root:hover,
+.mantine-PickerControl-pickerControl.mantine-UnstyledButton-root:hover,
+.mantine-Autocomplete-option:hover,
+.mantine-CloseButton-root:hover {
+  background-color: var(--mantine-color-gray-7);
+}
+
+:where([data-mantine-color-scheme="dark"]) .mantine-Checkbox-input:not(:checked) {
+  background-color: var(--mantine-color-gray-9);
+  border-color: var(--mantine-color-gray-8);
+  border-width: 0.125rem;
+}
+
+:where([data-mantine-color-scheme="dark"]) .mantine-Table-table {
+  --table-border-color: var(--mantine-color-gray-7);
+}
+
+.mantine-Table-tr {
+  border-bottom-width: 0.125rem;
 }

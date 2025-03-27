@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/firebase/app';
 import { useUser } from '@/lib/firebase/useUser';
-import { theme } from '@/theme';
+import { cssResolver, theme } from '@/theme';
 import { Anchor, AppShell, Burger, Button, Group, MantineProvider, NavLink, rem, Stack, Tabs, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { APIProvider } from '@vis.gl/react-google-maps';
@@ -52,18 +52,7 @@ export default function AppLayout({ children }: { children: any }) {
   };
   
   return <MantineProvider
-    cssVariablesResolver={(theme) => ({
-      variables: {
-        '--app-shell-header-z-index': '1100',
-        '--mantine-z-index-app': '1100',
-        '--mantine-z-index-modal': '1200',
-        '--mantine-z-index-popover': '1300',
-        '--mantine-z-index-overlay': '1400',
-        '--overlay-z-index': '1400',
-      },
-      light: {},
-      dark: {},
-    })}
+    cssVariablesResolver={cssResolver}
     defaultColorScheme="dark"
     theme={theme}
   >
@@ -72,9 +61,8 @@ export default function AppLayout({ children }: { children: any }) {
         header={{ height: 60 }}
         navbar={{ width: 300, breakpoint: 'sm', collapsed: { desktop: true, mobile: !opened } }}
         padding="md"
-        zIndex={1100}
       >
-        <AppShell.Header>
+        <AppShell.Header bg='var(--mantine-color-gray-8)'>
           <Group
             h="100%"
             justify="space-between"

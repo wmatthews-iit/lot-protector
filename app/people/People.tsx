@@ -6,6 +6,7 @@ import userValidation from '@/lib/validation/user';
 import {
   ActionIcon,
   Button,
+  Group,
   Modal,
   Table,
   Text,
@@ -61,6 +62,7 @@ export default function People() {
   const selectedPerson = selectedID ? people.find((person) => person.id === selectedID) : null;
   const [addOpened, { toggle: toggleAdd, close: closeAdd }] = useDisclosure(false);
   const [manageOpened, { toggle: toggleManage, close: closeManage }] = useDisclosure(false);
+  const [willRemove, setWillRemove] = useState<boolean>();
   
   const currentTime = new Date();
   currentTime.setHours(0);
@@ -100,6 +102,7 @@ export default function People() {
     selectPerson(person.id);
     updateForm.reset();
     toggleManage();
+    setWillRemove(false);
   };
   
   const addPerson = async ({ email, licensePlate, expirationDate }:
@@ -179,7 +182,11 @@ export default function People() {
       order={2}
     >Manage People</Title>
     <Button onClick={toggleAdd}>Add Person</Button>
-    <Table mt="md">
+    <Table
+      mt="md"
+      striped
+      stripedColor="var(--mantine-color-gray-8)"
+    >
       <Table.Thead>
         <Table.Tr>
           <Table.Th visibleFrom="md">Name</Table.Th>
@@ -216,7 +223,6 @@ export default function People() {
       onClose={closeAdd}
       opened={addOpened}
       title="Add Person"
-      zIndex={1400}
     >
       <form onSubmit={addForm.onSubmit(addPerson)}>
         <TextInput
@@ -248,7 +254,6 @@ export default function People() {
       onClose={closeManage}
       opened={manageOpened}
       title="Manage Person"
-      zIndex={1400}
     >
       <Title order={4}>{selectedPerson?.name}</Title>
       <Text mb="md">{selectedPerson?.email}</Text>
@@ -265,6 +270,7 @@ export default function People() {
           description="Leave empty if not changing"
           label="Expiration Date"
           mb="sm"
+          weekendDays={[]}
         />
         <TextInput
           key={updateForm.key('licensePlate')}
@@ -279,11 +285,19 @@ export default function People() {
         my="md"
         order={5}
       >Danger Zone</Title>
-      <Button
-        color="red"
-        onClick={removePerson}
-        variant="outline"
-      >Remove</Button>
+      <Text mb="md">Are you sure you want to remove this person? If you remove this person they will no longer be able to access this parking lot until you add them again.</Text>
+      <Group>
+        <Button
+          color={willRemove ? 'blue' : 'red'}
+          onClick={() => setWillRemove(!willRemove)}
+          variant="outline"
+        >{willRemove ? 'Cancel' : 'Remove'}</Button>
+        <Button
+          color="red"
+          display={willRemove ? 'flex' : 'none'}
+          onClick={removePerson}
+        >Remove</Button>
+      </Group>
     </Modal>
   </>;
 }

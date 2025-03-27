@@ -64,7 +64,7 @@ export default function Live() {
   const selectedLot = selectedLotID ? lots.find((lot) => lot.id === selectedLotID) : null;
   const [selectedSpotID, setSelectedSpotID] = useState<string>();
   const selectedSpot = spots?.find((spot) => spot.id === selectedSpotID);
-  const selectedZone = selectedSpot
+  const selectedZone = selectedSpot && selectedLot
     ? selectedLot.zones.find((zone: any) => zone.id == selectedSpot.zone_id) : null;
   const [showValid, setShowValid] = useState<boolean>(true);
   const [showDowned, setShowDowned] = useState<boolean>(true);
@@ -316,7 +316,6 @@ export default function Live() {
       onClose={closeView}
       opened={viewOpened}
       title="View Alert"
-      zIndex={1400}
     >
       <Title order={4}>{selectedAlert?.zone} - Spot {selectedAlert?.spot}</Title>
       <Text mb="md">{selectedAlert?.address}</Text>
